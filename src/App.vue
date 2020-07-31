@@ -1,26 +1,14 @@
 <template>
   <div id="app">
-    <section class="lpWrapper">
-      <sticky-button :lang="this.lang" :class="[show ? 'buttonSlideIn' : 'buttonSlideOut']"></sticky-button>
-      <wild-header :lang="this.lang" ref="wildHeader" ></wild-header>
-      <benefits-section :lang="this.lang" ref="benefitsSection"></benefits-section>
-      <genres-section :lang="this.lang"></genres-section>
-      <popular-games :lang="this.lang"></popular-games>
-      <!-- <keep-in-touch></keep-in-touch> -->
-      <wild-footer :lang="this.lang"></wild-footer>
-    </section>
+    <main-page v-if="showUnlimited() === false" ></main-page>
+    <unlimited-play v-if="showUnlimited()"></unlimited-play>
   </div>
 </template>
 <script>
 
 
-import wildHeader from './Header.vue';
-import benefitsSection from './Benefits.vue';
-import stickyButton from './StickyButton.vue';
-import genres from './Genres.vue';
-import popularGames from './popularGames.vue';
-import keepIntouch from './KeepInTouch.vue';
-import wildFooter from './Footer.vue';
+import mainPage from './MainPage.vue';
+import unlimitedPlay from './Unlimitedplay.vue';
 
 
 
@@ -28,46 +16,71 @@ export default {
   name: 'app',
   data:function() {
     return {
-      msg: 'No limits, ad-free gaming for wild members',
-      show: false,
-      lang: function(){
-        var userLanguage;
-        if(typeof dataLayer !== 'undefined'){
-          userLanguage = dataLayer[0].userLanguage.toLowerCase()
-        }else{
-          userLanguage = "it-it"
-        }
-        return userLanguage
+      //showUnlimited: true,
+      showUnlimited:function(){
+
+        let uri = window.location.href.split('?');
+        if (uri.length == 2){
+           let vars = uri[1].split('&');
+           let getVars = {};
+           let tmp = '';
+           vars.forEach(function(v){
+             tmp = v.split('=');
+             if(tmp.length == 2)
+             getVars[tmp[0]] = tmp[1];
+           });
+           //console.log(getVars);
+           // do
+           if(getVars.unlimitedplay == "true"){
+             //page is unlimited
+             return true
+           }else{
+             //page is not unlimited
+             return false
+           }
+
+         }else { //page is not unlimited
+          return false
+         }
+
       }
-    }
-  },
-  components:{
-    'wild-header': wildHeader,
-    'benefits-section': benefitsSection,
-    'sticky-button': stickyButton,
-    'genres-section': genres,
-    'popular-games': popularGames,
-    'keep-in-touch': keepIntouch,
-    'wild-footer':wildFooter
-  },
-  methods:{
-    handleScroll:function(evt){
-      let headerHeight = this.$refs.wildHeader.$el.offsetHeight,
-          headerTop = this.$refs.wildHeader.$el.offsetTop,
-          headerYPos = headerHeight + headerTop,
-          benefitsSectionTop = this.$refs.benefitsSection.$el.offsetTop;
-
-      this.show=!!(window.pageYOffset >= benefitsSectionTop);
-
-      // if(window.pageYOffset >= benefitsSectionTop){
-      //   this.show = true;
-      // }else{
-      //   this.show = false
+      // msg: 'No limits, ad-free gaming for wild members',
+      // show: false,
+      // lang: function(){
+      //   var userLanguage;
+      //   if(typeof dataLayer !== 'undefined'){
+      //     userLanguage = dataLayer[0].userLanguage.toLowerCase()
+      //   }else{
+      //     userLanguage = "en-us"
+      //   }
+      //   return userLanguage
       // }
     }
   },
+  components:{
+    'main-page': mainPage,
+    'unlimited-play': unlimitedPlay,
+  },
+  methods:{
+    // handleScroll:function(evt){
+    //   let headerHeight = this.$refs.wildHeader.$el.offsetHeight,
+    //       headerTop = this.$refs.wildHeader.$el.offsetTop,
+    //       headerYPos = headerHeight + headerTop,
+    //       benefitsSectionTop = this.$refs.benefitsSection.$el.offsetTop;
+    //
+    //   this.show=!!(window.pageYOffset >= benefitsSectionTop);
+    //
+    //   // if(window.pageYOffset >= benefitsSectionTop){
+    //   //   this.show = true;
+    //   // }else{
+    //   //   this.show = false
+    //   // }
+    // }
+  },
+  beforeCreate: function(){
+  },
   created: function(){
-     window.addEventListener('scroll', this.handleScroll);
+     // window.addEventListener('scroll', this.handleScroll);
   }
 }
 
@@ -79,37 +92,9 @@ body, html{
   margin:0;
   padding:0;
 }
-section.lpWrapper{
-    font-size: 16px;
-    background: #f1f1f1;
-    font-family: 'Open Sans', sans-serif;
-    h2{
-      font-family: 'Open Sans Condensed', sans-serif;
-      font-size: 3.15em;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-    h3{
-
-    }
-    .stickyWrap{
-      position: fixed;
-      width: 100%;
-      top: 0;
-      transition: transform .3s ease;
-      z-index: 20000;
-      &.buttonSlideIn{
-        transform: translateY(0px);
-      }
-      &.buttonSlideOut{
-        transform: translateY(-100px);
-      }
-    }
+#app.unlimitedPlay{
+  main-page{
+    display: none;
+  }
 }
-
-@media only screen and (max-width: 1319px) {}
-@media only screen and (max-width: 979px) {}
-@media only screen and (max-width: 767px) {}
-@media only screen and (max-width: 699px) {}
-
 </style>

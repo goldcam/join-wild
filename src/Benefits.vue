@@ -79,11 +79,6 @@ export default{
             "pt-br": "Os membros recebem descontos em aluguéis e compras em milhares de jogos."
           }
         },
-        // {
-        //   id:'rental',
-        //   h3: 'Rental Applies to Purchase',
-        //   p: 'Highest rental will go towards the purchase of the game.'
-        // },
         {
           id:'adFreeGaming',
           h3: {

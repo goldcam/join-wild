@@ -60,18 +60,437 @@
 /******/ 	__webpack_require__.p = "/AppPages/landing/default/join-wild/default/en-us/dist/";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 15);
+/******/ 	return __webpack_require__(__webpack_require__.s = 32);
 /******/ })
 /************************************************************************/
 /******/ ([
 /* 0 */
+/***/ (function(module, exports) {
+
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+// css base code, injected by the css-loader
+module.exports = function(useSourceMap) {
+	var list = [];
+
+	// return the list of modules as css string
+	list.toString = function toString() {
+		return this.map(function (item) {
+			var content = cssWithMappingToString(item, useSourceMap);
+			if(item[2]) {
+				return "@media " + item[2] + "{" + content + "}";
+			} else {
+				return content;
+			}
+		}).join("");
+	};
+
+	// import a list of modules into the list
+	list.i = function(modules, mediaQuery) {
+		if(typeof modules === "string")
+			modules = [[null, modules, ""]];
+		var alreadyImportedModules = {};
+		for(var i = 0; i < this.length; i++) {
+			var id = this[i][0];
+			if(typeof id === "number")
+				alreadyImportedModules[id] = true;
+		}
+		for(i = 0; i < modules.length; i++) {
+			var item = modules[i];
+			// skip already imported module
+			// this implementation is not 100% perfect for weird media query combinations
+			//  when a module is imported multiple times with different media queries.
+			//  I hope this will never occur (Hey this way we have smaller bundles)
+			if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
+				if(mediaQuery && !item[2]) {
+					item[2] = mediaQuery;
+				} else if(mediaQuery) {
+					item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
+				}
+				list.push(item);
+			}
+		}
+	};
+	return list;
+};
+
+function cssWithMappingToString(item, useSourceMap) {
+	var content = item[1] || '';
+	var cssMapping = item[3];
+	if (!cssMapping) {
+		return content;
+	}
+
+	if (useSourceMap && typeof btoa === 'function') {
+		var sourceMapping = toComment(cssMapping);
+		var sourceURLs = cssMapping.sources.map(function (source) {
+			return '/*# sourceURL=' + cssMapping.sourceRoot + source + ' */'
+		});
+
+		return [content].concat(sourceURLs).concat([sourceMapping]).join('\n');
+	}
+
+	return [content].join('\n');
+}
+
+// Adapted from convert-source-map (MIT)
+function toComment(sourceMap) {
+	// eslint-disable-next-line no-undef
+	var base64 = btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap))));
+	var data = 'sourceMappingURL=data:application/json;charset=utf-8;base64,' + base64;
+
+	return '/*# ' + data + ' */';
+}
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+/*
+  MIT License http://www.opensource.org/licenses/mit-license.php
+  Author Tobias Koppers @sokra
+  Modified by Evan You @yyx990803
+*/
+
+var hasDocument = typeof document !== 'undefined'
+
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  if (!hasDocument) {
+    throw new Error(
+    'vue-style-loader cannot be used in a non-browser environment. ' +
+    "Use { target: 'node' } in your Webpack config to indicate a server-rendering environment."
+  ) }
+}
+
+var listToStyles = __webpack_require__(61)
+
+/*
+type StyleObject = {
+  id: number;
+  parts: Array<StyleObjectPart>
+}
+
+type StyleObjectPart = {
+  css: string;
+  media: string;
+  sourceMap: ?string
+}
+*/
+
+var stylesInDom = {/*
+  [id: number]: {
+    id: number,
+    refs: number,
+    parts: Array<(obj?: StyleObjectPart) => void>
+  }
+*/}
+
+var head = hasDocument && (document.head || document.getElementsByTagName('head')[0])
+var singletonElement = null
+var singletonCounter = 0
+var isProduction = false
+var noop = function () {}
+var options = null
+var ssrIdKey = 'data-vue-ssr-id'
+
+// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+// tags it will allow on a page
+var isOldIE = typeof navigator !== 'undefined' && /msie [6-9]\b/.test(navigator.userAgent.toLowerCase())
+
+module.exports = function (parentId, list, _isProduction, _options) {
+  isProduction = _isProduction
+
+  options = _options || {}
+
+  var styles = listToStyles(parentId, list)
+  addStylesToDom(styles)
+
+  return function update (newList) {
+    var mayRemove = []
+    for (var i = 0; i < styles.length; i++) {
+      var item = styles[i]
+      var domStyle = stylesInDom[item.id]
+      domStyle.refs--
+      mayRemove.push(domStyle)
+    }
+    if (newList) {
+      styles = listToStyles(parentId, newList)
+      addStylesToDom(styles)
+    } else {
+      styles = []
+    }
+    for (var i = 0; i < mayRemove.length; i++) {
+      var domStyle = mayRemove[i]
+      if (domStyle.refs === 0) {
+        for (var j = 0; j < domStyle.parts.length; j++) {
+          domStyle.parts[j]()
+        }
+        delete stylesInDom[domStyle.id]
+      }
+    }
+  }
+}
+
+function addStylesToDom (styles /* Array<StyleObject> */) {
+  for (var i = 0; i < styles.length; i++) {
+    var item = styles[i]
+    var domStyle = stylesInDom[item.id]
+    if (domStyle) {
+      domStyle.refs++
+      for (var j = 0; j < domStyle.parts.length; j++) {
+        domStyle.parts[j](item.parts[j])
+      }
+      for (; j < item.parts.length; j++) {
+        domStyle.parts.push(addStyle(item.parts[j]))
+      }
+      if (domStyle.parts.length > item.parts.length) {
+        domStyle.parts.length = item.parts.length
+      }
+    } else {
+      var parts = []
+      for (var j = 0; j < item.parts.length; j++) {
+        parts.push(addStyle(item.parts[j]))
+      }
+      stylesInDom[item.id] = { id: item.id, refs: 1, parts: parts }
+    }
+  }
+}
+
+function createStyleElement () {
+  var styleElement = document.createElement('style')
+  styleElement.type = 'text/css'
+  head.appendChild(styleElement)
+  return styleElement
+}
+
+function addStyle (obj /* StyleObjectPart */) {
+  var update, remove
+  var styleElement = document.querySelector('style[' + ssrIdKey + '~="' + obj.id + '"]')
+
+  if (styleElement) {
+    if (isProduction) {
+      // has SSR styles and in production mode.
+      // simply do nothing.
+      return noop
+    } else {
+      // has SSR styles but in dev mode.
+      // for some reason Chrome can't handle source map in server-rendered
+      // style tags - source maps in <style> only works if the style tag is
+      // created and inserted dynamically. So we remove the server rendered
+      // styles and inject new ones.
+      styleElement.parentNode.removeChild(styleElement)
+    }
+  }
+
+  if (isOldIE) {
+    // use singleton mode for IE9.
+    var styleIndex = singletonCounter++
+    styleElement = singletonElement || (singletonElement = createStyleElement())
+    update = applyToSingletonTag.bind(null, styleElement, styleIndex, false)
+    remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true)
+  } else {
+    // use multi-style-tag mode in all other cases
+    styleElement = createStyleElement()
+    update = applyToTag.bind(null, styleElement)
+    remove = function () {
+      styleElement.parentNode.removeChild(styleElement)
+    }
+  }
+
+  update(obj)
+
+  return function updateStyle (newObj /* StyleObjectPart */) {
+    if (newObj) {
+      if (newObj.css === obj.css &&
+          newObj.media === obj.media &&
+          newObj.sourceMap === obj.sourceMap) {
+        return
+      }
+      update(obj = newObj)
+    } else {
+      remove()
+    }
+  }
+}
+
+var replaceText = (function () {
+  var textStore = []
+
+  return function (index, replacement) {
+    textStore[index] = replacement
+    return textStore.filter(Boolean).join('\n')
+  }
+})()
+
+function applyToSingletonTag (styleElement, index, remove, obj) {
+  var css = remove ? '' : obj.css
+
+  if (styleElement.styleSheet) {
+    styleElement.styleSheet.cssText = replaceText(index, css)
+  } else {
+    var cssNode = document.createTextNode(css)
+    var childNodes = styleElement.childNodes
+    if (childNodes[index]) styleElement.removeChild(childNodes[index])
+    if (childNodes.length) {
+      styleElement.insertBefore(cssNode, childNodes[index])
+    } else {
+      styleElement.appendChild(cssNode)
+    }
+  }
+}
+
+function applyToTag (styleElement, obj) {
+  var css = obj.css
+  var media = obj.media
+  var sourceMap = obj.sourceMap
+
+  if (media) {
+    styleElement.setAttribute('media', media)
+  }
+  if (options.ssrId) {
+    styleElement.setAttribute(ssrIdKey, obj.id)
+  }
+
+  if (sourceMap) {
+    // https://developer.chrome.com/devtools/docs/javascript-debugging
+    // this makes source maps inside style tags work properly in Chrome
+    css += '\n/*# sourceURL=' + sourceMap.sources[0] + ' */'
+    // http://stackoverflow.com/a/26603875
+    css += '\n/*# sourceMappingURL=data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + ' */'
+  }
+
+  if (styleElement.styleSheet) {
+    styleElement.styleSheet.cssText = css
+  } else {
+    while (styleElement.firstChild) {
+      styleElement.removeChild(styleElement.firstChild)
+    }
+    styleElement.appendChild(document.createTextNode(css))
+  }
+}
+
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports) {
+
+/* globals __VUE_SSR_CONTEXT__ */
+
+// IMPORTANT: Do NOT use ES2015 features in this file.
+// This module is a runtime utility for cleaner component module output and will
+// be included in the final webpack user bundle.
+
+module.exports = function normalizeComponent (
+  rawScriptExports,
+  compiledTemplate,
+  functionalTemplate,
+  injectStyles,
+  scopeId,
+  moduleIdentifier /* server only */
+) {
+  var esModule
+  var scriptExports = rawScriptExports = rawScriptExports || {}
+
+  // ES6 modules interop
+  var type = typeof rawScriptExports.default
+  if (type === 'object' || type === 'function') {
+    esModule = rawScriptExports
+    scriptExports = rawScriptExports.default
+  }
+
+  // Vue.extend constructor export interop
+  var options = typeof scriptExports === 'function'
+    ? scriptExports.options
+    : scriptExports
+
+  // render functions
+  if (compiledTemplate) {
+    options.render = compiledTemplate.render
+    options.staticRenderFns = compiledTemplate.staticRenderFns
+    options._compiled = true
+  }
+
+  // functional template
+  if (functionalTemplate) {
+    options.functional = true
+  }
+
+  // scopedId
+  if (scopeId) {
+    options._scopeId = scopeId
+  }
+
+  var hook
+  if (moduleIdentifier) { // server build
+    hook = function (context) {
+      // 2.3 injection
+      context =
+        context || // cached call
+        (this.$vnode && this.$vnode.ssrContext) || // stateful
+        (this.parent && this.parent.$vnode && this.parent.$vnode.ssrContext) // functional
+      // 2.2 with runInNewContext: true
+      if (!context && typeof __VUE_SSR_CONTEXT__ !== 'undefined') {
+        context = __VUE_SSR_CONTEXT__
+      }
+      // inject component styles
+      if (injectStyles) {
+        injectStyles.call(this, context)
+      }
+      // register component module identifier for async chunk inferrence
+      if (context && context._registeredComponents) {
+        context._registeredComponents.add(moduleIdentifier)
+      }
+    }
+    // used by ssr in case component is cached and beforeCreate
+    // never gets called
+    options._ssrRegister = hook
+  } else if (injectStyles) {
+    hook = injectStyles
+  }
+
+  if (hook) {
+    var functional = options.functional
+    var existing = functional
+      ? options.render
+      : options.beforeCreate
+
+    if (!functional) {
+      // inject component registration as beforeCreate hook
+      options.beforeCreate = existing
+        ? [].concat(existing, hook)
+        : [hook]
+    } else {
+      // for template-only hot-reload because in that case the render fn doesn't
+      // go through the normalizer
+      options._injectStyles = hook
+      // register for functioal component in vue file
+      options.render = function renderWithStyleInjection (h, context) {
+        hook.call(context)
+        return existing(h, context)
+      }
+    }
+  }
+
+  return {
+    esModule: esModule,
+    exports: scriptExports,
+    options: options
+  }
+}
+
+
+/***/ }),
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var bind = __webpack_require__(7);
-var isBuffer = __webpack_require__(23);
+var bind = __webpack_require__(8);
+var isBuffer = __webpack_require__(40);
 
 /*global toString:true*/
 
@@ -374,7 +793,29 @@ module.exports = {
 
 
 /***/ }),
-/* 1 */
+/* 4 */
+/***/ (function(module, exports) {
+
+module.exports = function escape(url) {
+    if (typeof url !== 'string') {
+        return url
+    }
+    // If url is already wrapped in quotes, remove them
+    if (/^['"].*['"]$/.test(url)) {
+        url = url.slice(1, -1);
+    }
+    // Should url be wrapped?
+    // See https://drafts.csswg.org/css-values-3/#urls
+    if (/["'() \t\n]/.test(url)) {
+        return '"' + url.replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"'
+    }
+
+    return url
+}
+
+
+/***/ }),
+/* 5 */
 /***/ (function(module, exports) {
 
 var g;
@@ -401,7 +842,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 2 */
+/* 6 */
 /***/ (function(module, exports) {
 
 // shim for using process in browser
@@ -591,14 +1032,14 @@ process.umask = function() { return 0; };
 
 
 /***/ }),
-/* 3 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(process) {
 
-var utils = __webpack_require__(0);
-var normalizeHeaderName = __webpack_require__(25);
+var utils = __webpack_require__(3);
+var normalizeHeaderName = __webpack_require__(42);
 
 var DEFAULT_CONTENT_TYPE = {
   'Content-Type': 'application/x-www-form-urlencoded'
@@ -614,10 +1055,10 @@ function getDefaultAdapter() {
   var adapter;
   if (typeof XMLHttpRequest !== 'undefined') {
     // For browsers use XHR adapter
-    adapter = __webpack_require__(8);
+    adapter = __webpack_require__(9);
   } else if (typeof process !== 'undefined') {
     // For node use HTTP adapter
-    adapter = __webpack_require__(8);
+    adapter = __webpack_require__(9);
   }
   return adapter;
 }
@@ -692,429 +1133,10 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 module.exports = defaults;
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6)))
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-/*
-	MIT License http://www.opensource.org/licenses/mit-license.php
-	Author Tobias Koppers @sokra
-*/
-// css base code, injected by the css-loader
-module.exports = function(useSourceMap) {
-	var list = [];
-
-	// return the list of modules as css string
-	list.toString = function toString() {
-		return this.map(function (item) {
-			var content = cssWithMappingToString(item, useSourceMap);
-			if(item[2]) {
-				return "@media " + item[2] + "{" + content + "}";
-			} else {
-				return content;
-			}
-		}).join("");
-	};
-
-	// import a list of modules into the list
-	list.i = function(modules, mediaQuery) {
-		if(typeof modules === "string")
-			modules = [[null, modules, ""]];
-		var alreadyImportedModules = {};
-		for(var i = 0; i < this.length; i++) {
-			var id = this[i][0];
-			if(typeof id === "number")
-				alreadyImportedModules[id] = true;
-		}
-		for(i = 0; i < modules.length; i++) {
-			var item = modules[i];
-			// skip already imported module
-			// this implementation is not 100% perfect for weird media query combinations
-			//  when a module is imported multiple times with different media queries.
-			//  I hope this will never occur (Hey this way we have smaller bundles)
-			if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
-				if(mediaQuery && !item[2]) {
-					item[2] = mediaQuery;
-				} else if(mediaQuery) {
-					item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
-				}
-				list.push(item);
-			}
-		}
-	};
-	return list;
-};
-
-function cssWithMappingToString(item, useSourceMap) {
-	var content = item[1] || '';
-	var cssMapping = item[3];
-	if (!cssMapping) {
-		return content;
-	}
-
-	if (useSourceMap && typeof btoa === 'function') {
-		var sourceMapping = toComment(cssMapping);
-		var sourceURLs = cssMapping.sources.map(function (source) {
-			return '/*# sourceURL=' + cssMapping.sourceRoot + source + ' */'
-		});
-
-		return [content].concat(sourceURLs).concat([sourceMapping]).join('\n');
-	}
-
-	return [content].join('\n');
-}
-
-// Adapted from convert-source-map (MIT)
-function toComment(sourceMap) {
-	// eslint-disable-next-line no-undef
-	var base64 = btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap))));
-	var data = 'sourceMappingURL=data:application/json;charset=utf-8;base64,' + base64;
-
-	return '/*# ' + data + ' */';
-}
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-/*
-  MIT License http://www.opensource.org/licenses/mit-license.php
-  Author Tobias Koppers @sokra
-  Modified by Evan You @yyx990803
-*/
-
-var hasDocument = typeof document !== 'undefined'
-
-if (typeof DEBUG !== 'undefined' && DEBUG) {
-  if (!hasDocument) {
-    throw new Error(
-    'vue-style-loader cannot be used in a non-browser environment. ' +
-    "Use { target: 'node' } in your Webpack config to indicate a server-rendering environment."
-  ) }
-}
-
-var listToStyles = __webpack_require__(44)
-
-/*
-type StyleObject = {
-  id: number;
-  parts: Array<StyleObjectPart>
-}
-
-type StyleObjectPart = {
-  css: string;
-  media: string;
-  sourceMap: ?string
-}
-*/
-
-var stylesInDom = {/*
-  [id: number]: {
-    id: number,
-    refs: number,
-    parts: Array<(obj?: StyleObjectPart) => void>
-  }
-*/}
-
-var head = hasDocument && (document.head || document.getElementsByTagName('head')[0])
-var singletonElement = null
-var singletonCounter = 0
-var isProduction = false
-var noop = function () {}
-var options = null
-var ssrIdKey = 'data-vue-ssr-id'
-
-// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
-// tags it will allow on a page
-var isOldIE = typeof navigator !== 'undefined' && /msie [6-9]\b/.test(navigator.userAgent.toLowerCase())
-
-module.exports = function (parentId, list, _isProduction, _options) {
-  isProduction = _isProduction
-
-  options = _options || {}
-
-  var styles = listToStyles(parentId, list)
-  addStylesToDom(styles)
-
-  return function update (newList) {
-    var mayRemove = []
-    for (var i = 0; i < styles.length; i++) {
-      var item = styles[i]
-      var domStyle = stylesInDom[item.id]
-      domStyle.refs--
-      mayRemove.push(domStyle)
-    }
-    if (newList) {
-      styles = listToStyles(parentId, newList)
-      addStylesToDom(styles)
-    } else {
-      styles = []
-    }
-    for (var i = 0; i < mayRemove.length; i++) {
-      var domStyle = mayRemove[i]
-      if (domStyle.refs === 0) {
-        for (var j = 0; j < domStyle.parts.length; j++) {
-          domStyle.parts[j]()
-        }
-        delete stylesInDom[domStyle.id]
-      }
-    }
-  }
-}
-
-function addStylesToDom (styles /* Array<StyleObject> */) {
-  for (var i = 0; i < styles.length; i++) {
-    var item = styles[i]
-    var domStyle = stylesInDom[item.id]
-    if (domStyle) {
-      domStyle.refs++
-      for (var j = 0; j < domStyle.parts.length; j++) {
-        domStyle.parts[j](item.parts[j])
-      }
-      for (; j < item.parts.length; j++) {
-        domStyle.parts.push(addStyle(item.parts[j]))
-      }
-      if (domStyle.parts.length > item.parts.length) {
-        domStyle.parts.length = item.parts.length
-      }
-    } else {
-      var parts = []
-      for (var j = 0; j < item.parts.length; j++) {
-        parts.push(addStyle(item.parts[j]))
-      }
-      stylesInDom[item.id] = { id: item.id, refs: 1, parts: parts }
-    }
-  }
-}
-
-function createStyleElement () {
-  var styleElement = document.createElement('style')
-  styleElement.type = 'text/css'
-  head.appendChild(styleElement)
-  return styleElement
-}
-
-function addStyle (obj /* StyleObjectPart */) {
-  var update, remove
-  var styleElement = document.querySelector('style[' + ssrIdKey + '~="' + obj.id + '"]')
-
-  if (styleElement) {
-    if (isProduction) {
-      // has SSR styles and in production mode.
-      // simply do nothing.
-      return noop
-    } else {
-      // has SSR styles but in dev mode.
-      // for some reason Chrome can't handle source map in server-rendered
-      // style tags - source maps in <style> only works if the style tag is
-      // created and inserted dynamically. So we remove the server rendered
-      // styles and inject new ones.
-      styleElement.parentNode.removeChild(styleElement)
-    }
-  }
-
-  if (isOldIE) {
-    // use singleton mode for IE9.
-    var styleIndex = singletonCounter++
-    styleElement = singletonElement || (singletonElement = createStyleElement())
-    update = applyToSingletonTag.bind(null, styleElement, styleIndex, false)
-    remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true)
-  } else {
-    // use multi-style-tag mode in all other cases
-    styleElement = createStyleElement()
-    update = applyToTag.bind(null, styleElement)
-    remove = function () {
-      styleElement.parentNode.removeChild(styleElement)
-    }
-  }
-
-  update(obj)
-
-  return function updateStyle (newObj /* StyleObjectPart */) {
-    if (newObj) {
-      if (newObj.css === obj.css &&
-          newObj.media === obj.media &&
-          newObj.sourceMap === obj.sourceMap) {
-        return
-      }
-      update(obj = newObj)
-    } else {
-      remove()
-    }
-  }
-}
-
-var replaceText = (function () {
-  var textStore = []
-
-  return function (index, replacement) {
-    textStore[index] = replacement
-    return textStore.filter(Boolean).join('\n')
-  }
-})()
-
-function applyToSingletonTag (styleElement, index, remove, obj) {
-  var css = remove ? '' : obj.css
-
-  if (styleElement.styleSheet) {
-    styleElement.styleSheet.cssText = replaceText(index, css)
-  } else {
-    var cssNode = document.createTextNode(css)
-    var childNodes = styleElement.childNodes
-    if (childNodes[index]) styleElement.removeChild(childNodes[index])
-    if (childNodes.length) {
-      styleElement.insertBefore(cssNode, childNodes[index])
-    } else {
-      styleElement.appendChild(cssNode)
-    }
-  }
-}
-
-function applyToTag (styleElement, obj) {
-  var css = obj.css
-  var media = obj.media
-  var sourceMap = obj.sourceMap
-
-  if (media) {
-    styleElement.setAttribute('media', media)
-  }
-  if (options.ssrId) {
-    styleElement.setAttribute(ssrIdKey, obj.id)
-  }
-
-  if (sourceMap) {
-    // https://developer.chrome.com/devtools/docs/javascript-debugging
-    // this makes source maps inside style tags work properly in Chrome
-    css += '\n/*# sourceURL=' + sourceMap.sources[0] + ' */'
-    // http://stackoverflow.com/a/26603875
-    css += '\n/*# sourceMappingURL=data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + ' */'
-  }
-
-  if (styleElement.styleSheet) {
-    styleElement.styleSheet.cssText = css
-  } else {
-    while (styleElement.firstChild) {
-      styleElement.removeChild(styleElement.firstChild)
-    }
-    styleElement.appendChild(document.createTextNode(css))
-  }
-}
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports) {
-
-/* globals __VUE_SSR_CONTEXT__ */
-
-// IMPORTANT: Do NOT use ES2015 features in this file.
-// This module is a runtime utility for cleaner component module output and will
-// be included in the final webpack user bundle.
-
-module.exports = function normalizeComponent (
-  rawScriptExports,
-  compiledTemplate,
-  functionalTemplate,
-  injectStyles,
-  scopeId,
-  moduleIdentifier /* server only */
-) {
-  var esModule
-  var scriptExports = rawScriptExports = rawScriptExports || {}
-
-  // ES6 modules interop
-  var type = typeof rawScriptExports.default
-  if (type === 'object' || type === 'function') {
-    esModule = rawScriptExports
-    scriptExports = rawScriptExports.default
-  }
-
-  // Vue.extend constructor export interop
-  var options = typeof scriptExports === 'function'
-    ? scriptExports.options
-    : scriptExports
-
-  // render functions
-  if (compiledTemplate) {
-    options.render = compiledTemplate.render
-    options.staticRenderFns = compiledTemplate.staticRenderFns
-    options._compiled = true
-  }
-
-  // functional template
-  if (functionalTemplate) {
-    options.functional = true
-  }
-
-  // scopedId
-  if (scopeId) {
-    options._scopeId = scopeId
-  }
-
-  var hook
-  if (moduleIdentifier) { // server build
-    hook = function (context) {
-      // 2.3 injection
-      context =
-        context || // cached call
-        (this.$vnode && this.$vnode.ssrContext) || // stateful
-        (this.parent && this.parent.$vnode && this.parent.$vnode.ssrContext) // functional
-      // 2.2 with runInNewContext: true
-      if (!context && typeof __VUE_SSR_CONTEXT__ !== 'undefined') {
-        context = __VUE_SSR_CONTEXT__
-      }
-      // inject component styles
-      if (injectStyles) {
-        injectStyles.call(this, context)
-      }
-      // register component module identifier for async chunk inferrence
-      if (context && context._registeredComponents) {
-        context._registeredComponents.add(moduleIdentifier)
-      }
-    }
-    // used by ssr in case component is cached and beforeCreate
-    // never gets called
-    options._ssrRegister = hook
-  } else if (injectStyles) {
-    hook = injectStyles
-  }
-
-  if (hook) {
-    var functional = options.functional
-    var existing = functional
-      ? options.render
-      : options.beforeCreate
-
-    if (!functional) {
-      // inject component registration as beforeCreate hook
-      options.beforeCreate = existing
-        ? [].concat(existing, hook)
-        : [hook]
-    } else {
-      // for template-only hot-reload because in that case the render fn doesn't
-      // go through the normalizer
-      options._injectStyles = hook
-      // register for functioal component in vue file
-      options.render = function renderWithStyleInjection (h, context) {
-        hook.call(context)
-        return existing(h, context)
-      }
-    }
-  }
-
-  return {
-    esModule: esModule,
-    exports: scriptExports,
-    options: options
-  }
-}
-
-
-/***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1132,19 +1154,19 @@ module.exports = function bind(fn, thisArg) {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
-var settle = __webpack_require__(26);
-var buildURL = __webpack_require__(28);
-var parseHeaders = __webpack_require__(29);
-var isURLSameOrigin = __webpack_require__(30);
-var createError = __webpack_require__(9);
-var btoa = (typeof window !== 'undefined' && window.btoa && window.btoa.bind(window)) || __webpack_require__(31);
+var utils = __webpack_require__(3);
+var settle = __webpack_require__(43);
+var buildURL = __webpack_require__(45);
+var parseHeaders = __webpack_require__(46);
+var isURLSameOrigin = __webpack_require__(47);
+var createError = __webpack_require__(10);
+var btoa = (typeof window !== 'undefined' && window.btoa && window.btoa.bind(window)) || __webpack_require__(48);
 
 module.exports = function xhrAdapter(config) {
   return new Promise(function dispatchXhrRequest(resolve, reject) {
@@ -1241,7 +1263,7 @@ module.exports = function xhrAdapter(config) {
     // This is only done if running in a standard browser environment.
     // Specifically not if we're in a web worker, or react-native.
     if (utils.isStandardBrowserEnv()) {
-      var cookies = __webpack_require__(32);
+      var cookies = __webpack_require__(49);
 
       // Add xsrf header
       var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ?
@@ -1319,13 +1341,13 @@ module.exports = function xhrAdapter(config) {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var enhanceError = __webpack_require__(27);
+var enhanceError = __webpack_require__(44);
 
 /**
  * Create an Error with the specified message, config, error code, request and response.
@@ -1344,7 +1366,7 @@ module.exports = function createError(message, config, code, request, response) 
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1356,7 +1378,7 @@ module.exports = function isCancel(value) {
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1382,18 +1404,20 @@ module.exports = Cancel;
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__Benefits_vue__ = __webpack_require__(45);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__MainPage_vue__ = __webpack_require__(62);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__Unlimitedplay_vue__ = __webpack_require__(113);
 //
 //
 //
 //
 //
 //
-//
+
+
 
 
 
@@ -1401,12 +1425,114 @@ module.exports = Cancel;
   name: 'app',
   data: function () {
     return {
+      //showUnlimited: true,
+      showUnlimited: function () {
+
+        let uri = window.location.href.split('?');
+        if (uri.length == 2) {
+          let vars = uri[1].split('&');
+          let getVars = {};
+          let tmp = '';
+          vars.forEach(function (v) {
+            tmp = v.split('=');
+            if (tmp.length == 2) getVars[tmp[0]] = tmp[1];
+          });
+          //console.log(getVars);
+          // do
+          if (getVars.unlimitedplay == "true") {
+            //page is unlimited
+            return true;
+          } else {
+            //page is not unlimited
+            return false;
+          }
+        } else {
+          //page is not unlimited
+          return false;
+        }
+      }
+      // msg: 'No limits, ad-free gaming for wild members',
+      // show: false,
+      // lang: function(){
+      //   var userLanguage;
+      //   if(typeof dataLayer !== 'undefined'){
+      //     userLanguage = dataLayer[0].userLanguage.toLowerCase()
+      //   }else{
+      //     userLanguage = "en-us"
+      //   }
+      //   return userLanguage
+      // }
+    };
+  },
+  components: {
+    'main-page': __WEBPACK_IMPORTED_MODULE_0__MainPage_vue__["a" /* default */],
+    'unlimited-play': __WEBPACK_IMPORTED_MODULE_1__Unlimitedplay_vue__["a" /* default */]
+  },
+  methods: {
+    // handleScroll:function(evt){
+    //   let headerHeight = this.$refs.wildHeader.$el.offsetHeight,
+    //       headerTop = this.$refs.wildHeader.$el.offsetTop,
+    //       headerYPos = headerHeight + headerTop,
+    //       benefitsSectionTop = this.$refs.benefitsSection.$el.offsetTop;
+    //
+    //   this.show=!!(window.pageYOffset >= benefitsSectionTop);
+    //
+    //   // if(window.pageYOffset >= benefitsSectionTop){
+    //   //   this.show = true;
+    //   // }else{
+    //   //   this.show = false
+    //   // }
+    // }
+  },
+  beforeCreate: function () {},
+  created: function () {
+    // window.addEventListener('scroll', this.handleScroll);
+  }
+});
+
+/***/ }),
+/* 14 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__Header_vue__ = __webpack_require__(65);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__Benefits_vue__ = __webpack_require__(69);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__StickyButton_vue__ = __webpack_require__(81);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__Genres_vue__ = __webpack_require__(86);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__popularGames_vue__ = __webpack_require__(99);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__KeepInTouch_vue__ = __webpack_require__(104);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__Footer_vue__ = __webpack_require__(108);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+
+
+
+
+
+
+
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'main-page',
+  data: function () {
+    return {
       msg: 'No limits, ad-free gaming for wild members',
       show: false,
       lang: function () {
         var userLanguage;
         if (typeof dataLayer !== 'undefined') {
-          lang = dataLayer[0].userLanguage.toLowerCase();
+          userLanguage = dataLayer[0].userLanguage.toLowerCase();
         } else {
           userLanguage = "en-us";
         }
@@ -1415,14 +1541,21 @@ module.exports = Cancel;
     };
   },
   components: {
-    'benefits-section': __WEBPACK_IMPORTED_MODULE_0__Benefits_vue__["a" /* default */]
+    'wild-header': __WEBPACK_IMPORTED_MODULE_0__Header_vue__["a" /* default */],
+    'benefits-section': __WEBPACK_IMPORTED_MODULE_1__Benefits_vue__["a" /* default */],
+    'sticky-button': __WEBPACK_IMPORTED_MODULE_2__StickyButton_vue__["a" /* default */],
+    'genres-section': __WEBPACK_IMPORTED_MODULE_3__Genres_vue__["a" /* default */],
+    'popular-games': __WEBPACK_IMPORTED_MODULE_4__popularGames_vue__["a" /* default */],
+    'keep-in-touch': __WEBPACK_IMPORTED_MODULE_5__KeepInTouch_vue__["a" /* default */],
+    'wild-footer': __WEBPACK_IMPORTED_MODULE_6__Footer_vue__["a" /* default */]
   },
   methods: {
     handleScroll: function (evt) {
-      let headerHeight = this.$refs.wildHeader.$el.offsetHeight,
+      var headerHeight = this.$refs.wildHeader.$el.offsetHeight,
           headerTop = this.$refs.wildHeader.$el.offsetTop,
           headerYPos = headerHeight + headerTop,
           benefitsSectionTop = this.$refs.benefitsSection.$el.offsetTop;
+
       this.show = !!(window.pageYOffset >= benefitsSectionTop);
     }
   },
@@ -1432,11 +1565,94 @@ module.exports = Cancel;
 });
 
 /***/ }),
-/* 13 */
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "wildheader.jpg?0157067eb1e9e78fe002d145bf22c299";
+
+/***/ }),
+/* 16 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__BenefitItem_vue__ = __webpack_require__(48);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'wild-header',
+  props: ['lang'],
+  data: function () {
+    return {
+      prices: {
+        "localhost": "$7.99",
+        ".com": "$7.99", //usd
+        ".eu": "7.99 €", //eur
+        ".de": "7.99 €", //eur
+        ".fr": "7.99 €", //eur
+        ".it": "7.99 €", //eur
+        ".es": "7.99 €", //eur
+        ".ca": "$10.99", //cad
+        ".co.uk": "£6.99", //gbp
+        ".mx": "$149", //mxn
+        ".com.br": "R$ 25,99", //brl
+        ".co.nz": "NZ$ 11.49", //nzd
+        ".com.au": "$9.99", //aud
+        ".kr": "₩8900", //krw
+        ".sg": "$11", //sgd
+        ".hk": "HK$ 60", //hkd
+        ".in": "₹499" //inr
+      },
+      content: {
+        headline: {
+          "en-us": "Maximize your gaming with membership",
+          "es-mx": "Maximiza tu juego con membresía",
+          "de-de": "Jetzt Mitglied werden und Vorteile sichern",
+          "fr-fr": "Maximisez votre jeu avec l'adhésion",
+          "it-it": "Massimizza i tuoi giochi con l'abbonamento",
+          "es-es": "Maximiza tu juego con membresía",
+          "pt-br": "Maximize seu jogo com a associação"
+        },
+        cta: {
+          "en-us": "Join Now",
+          "es-mx": "ÚNETE AHORA",
+          "de-de": "MITGLIED WERDEN",
+          "fr-fr": "ADHÉRER",
+          "it-it": "ISCRIVITI ADESSO",
+          "es-es": "ÚNETE AHORA",
+          "pt-br": "ENTRAR"
+        },
+        priceDetails: {
+          "en-us": "/month. Cancel anytime.",
+          "es-mx": "/ mes. Cancelar en cualquier momento.",
+          "de-de": "/Monat. Jederzeit kündbar.",
+          "fr-fr": " / mois. Annuler à tout moment.",
+          "it-it": "/ mese. Annulla in qualsiasi momento.",
+          "es-es": "/ mes. Cancelar en cualquier momento.",
+          "pt-br": "/mês. Cancelar a qualquer momento."
+        }
+      },
+      domain: window.location.hostname.replace('www.wildtangent', '')
+    };
+  }
+});
+
+/***/ }),
+/* 17 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__BenefitItem_vue__ = __webpack_require__(72);
 //
 //
 //
@@ -1515,13 +1731,7 @@ module.exports = Cancel;
           "es-es": "Los miembros obtienen descuentos en alquileres y compras en miles de juegos.",
           "pt-br": "Os membros recebem descontos em aluguéis e compras em milhares de jogos."
         }
-      },
-      // {
-      //   id:'rental',
-      //   h3: 'Rental Applies to Purchase',
-      //   p: 'Highest rental will go towards the purchase of the game.'
-      // },
-      {
+      }, {
         id: 'adFreeGaming',
         h3: {
           "en-us": "Ad Free Gaming",
@@ -1547,7 +1757,7 @@ module.exports = Cancel;
 });
 
 /***/ }),
-/* 14 */
+/* 18 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -1578,35 +1788,943 @@ module.exports = Cancel;
 });
 
 /***/ }),
-/* 15 */
+/* 19 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue_sticky__ = __webpack_require__(84);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue_sticky___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_vue_sticky__);
+//
+//
+//
+//
+//
+//
+//
+
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'sticky-button',
+  props: ['lang'],
+  directives: {
+    'sticky': __WEBPACK_IMPORTED_MODULE_0_vue_sticky___default.a
+  },
+  data: function () {
+    return {
+      content: {
+        cta: {
+          "en-us": "Join Now",
+          "es-mx": "ÚNETE AHORA",
+          "de-de": "MITGLIED WERDEN",
+          "fr-fr": "ADHÉRER",
+          "it-it": "ISCRIVITI ADESSO",
+          "es-es": "ÚNETE AHORA",
+          "pt-br": "ENTRAR"
+        }
+      }
+    };
+  }
+});
+
+/***/ }),
+/* 20 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'genres',
+  props: ['lang'],
+  data: function () {
+    return {
+      genres: [{
+        className: 'rpg',
+        text: {
+          "en-us": "Role-Playing",
+          "es-mx": "Juego de rol",
+          "de-de": "Rollenspiel",
+          "fr-fr": "Jouer un rôle",
+          "it-it": "Giochi di ruolo",
+          "es-es": "Juego de rol",
+          "pt-br": "Objecto escondido"
+        }
+      }, {
+        className: 'hiddenObject',
+        text: {
+          "en-us": "Hidden Object",
+          "es-mx": "Objeto oculto",
+          "de-de": "Wimmelbild",
+          "fr-fr": "Objets cachés",
+          "it-it": "Oggetto nascosto",
+          "es-es": "Objeto oculto",
+          "pt-br": ""
+        }
+      }, {
+        className: 'strategy',
+        text: {
+          "en-us": "Strategy",
+          "es-mx": "Estrategia",
+          "de-de": "Strategie",
+          "fr-fr": "Stratégie",
+          "it-it": "Strategia",
+          "es-es": "Estrategia",
+          "pt-br": "Estratégia"
+        }
+      }, {
+        className: 'action',
+        text: {
+          "en-us": "Action & Adventure",
+          "es-mx": "Acción Aventura",
+          "de-de": "Action & Abenteuer",
+          "fr-fr": "Action & Aventure",
+          "it-it": "Azione avventura",
+          "es-es": "Acción Aventura",
+          "pt-br": "Ação e aventura"
+        }
+      }, {
+        className: 'racing',
+        text: {
+          "en-us": "Racing",
+          "es-mx": "Carreras",
+          "de-de": "Rennspiele",
+          "fr-fr": "Courses",
+          "it-it": "Da corsa",
+          "es-es": "Carreras",
+          "pt-br": "Corridas"
+        }
+      }, {
+        className: 'cards',
+        text: {
+          "en-us": "Cards & Casino",
+          "es-mx": "Tarjetas y Casino",
+          "de-de": "Karten & Casino",
+          "fr-fr": "Cartes et casino",
+          "it-it": "Carte e casinò",
+          "es-es": "Tarjetas y Casino",
+          "pt-br": "Cartões e Cassino"
+        }
+      }, {
+        className: 'puzzle',
+        text: {
+          "en-us": "Puzzle",
+          "es-mx": "Rompecabezas",
+          "de-de": "Puzzle",
+          "fr-fr": "Puzzle",
+          "it-it": "Puzzle",
+          "es-es": "Rompecabezas",
+          "pt-br": "Enigma"
+        }
+      }, {
+        className: 'timeManagement',
+        text: {
+          "en-us": "Time Management",
+          "es-mx": "Gestión del tiempo",
+          "de-de": "Zeit-Management",
+          "fr-fr": "Gestion du temps",
+          "it-it": "Gestione del tempo",
+          "es-es": "Gestión del tiempo",
+          "pt-br": "Gerenciamento de tempo"
+        }
+      }],
+      content: {
+        headline: {
+          "en-us": "all the best genres",
+          "es-mx": "todos los mejores géneros",
+          "de-de": "Die besten Genres",
+          "fr-fr": "tous les meilleurs genres",
+          "it-it": "tutti i migliori generi",
+          "es-es": "todos los mejores géneros",
+          "pt-br": "todos os melhores gêneros"
+        },
+        text: {
+          "en-us": "Whether you love to delve deep into dungeons, solve master puzzles, race the clock, beat your solitaire time, or go on adventures, we’ve got your favorite genres covered!",
+          "es-mx": "Ya sea que te guste profundizar en las mazmorras, resolver rompecabezas principales, correr el reloj, superar tu tiempo de solitario o aventuras, ¡tenemos tus géneros favoritos cubiertos!",
+          "de-de": "Du hältst dich am liebsten in dunklen Höhlen auf? Du meisterst ein Puzzle nach dem anderen? Du willst jeden Wettlauf gegen die Zeit gewinnen? Du bist Meister im Solitaire oder immer auf der Suche nach dem nächsten Abenteuer? Wir haben für jeden das passende Genre!",
+          "fr-fr": "Que vous aimiez plonger dans les donjons, résoudre des énigmes majeures, jouer à l'horloge, battre votre temps au solitaire ou partir à l'aventure, vos genres préférés sont couverts!",
+          "it-it": "Che ti piaccia immergerti nei sotterranei, risolvere rompicapi, correre il tempo, battere il tuo tempo solitario, o andare in avventure, abbiamo coperto i tuoi generi preferiti!",
+          "es-es": "Ya sea que te guste profundizar en las mazmorras, resolver rompecabezas principales, correr el reloj, superar tu tiempo de solitario o aventuras, ¡tenemos tus géneros favoritos cubiertos!",
+          "pt-br": "Se você gosta de se aprofundar nas masmorras, resolver quebra-cabeças, correr o relógio, bater o seu tempo de solitário ou ir em aventuras, nós temos seus gêneros favoritos cobertos!"
+        }
+      }
+    };
+  }
+});
+
+/***/ }),
+/* 21 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'popular-games',
+  props: ['lang'],
+  data: function () {
+    return {
+      games: [],
+      content: {
+        headline: {
+          "en-us": "popular games",
+          "es-mx": "comprar juegos",
+          "de-de": "Beliebte Spiele",
+          "fr-fr": "jeux populaires",
+          "it-it": "acquista giochi",
+          "es-es": "comprar juegos",
+          "pt-br": "jogos populares"
+        },
+        text: {
+          "en-us": "With a continuously growing library (over 4,000 games!), you can be sure to find some of your beloved titles or discover a new favorite!",
+          "es-mx": "Con una biblioteca en continuo crecimiento (¡más de 4,000 juegos!), Puedes estar seguro de encontrar algunos de tus títulos más queridos o descubrir un nuevo favorito.",
+          "de-de": "Unser Portfolio wird immer größer (über 4.000 Spiele)! Bei uns findest du also bestimmt einige deiner Lieblingstitel oder entdeckst den ein oder anderen neuen Favoriten!",
+          "fr-fr": "Avec une bibliothèque en croissance constante (plus de 4 000 jeux!), Vous pouvez être sûr de trouver certains de vos titres préférés ou de découvrir un nouveau favori!",
+          "it-it": "Con una libreria in continua crescita (oltre 4.000 giochi!), Puoi essere sicuro di trovare alcuni dei tuoi titoli preferiti o scoprire un nuovo preferito!",
+          "es-es": "Con una biblioteca en continuo crecimiento (¡más de 4,000 juegos!), Puedes estar seguro de encontrar algunos de tus títulos más queridos o descubrir un nuevo favorito.",
+          "pt-br": "Com uma biblioteca em constante crescimento (mais de 4.000 jogos!), Você pode ter certeza de encontrar alguns dos seus amados títulos ou descobrir um novo favorito!"
+        }
+      }
+    };
+  },
+  mounted: function () {
+    var gamesArr = ['racing-games', 'adventure-games', 'steam-games', 'time-management-games', 'hidden-object-games', 'action-games'];
+    var THIS = this;
+
+    for (let i = 0; i < gamesArr.length; i++) {
+      //https://products.wildtangent.com/tags/v1.0/wildgames/us/en-us/steam-games?sort=mostpopular&sortorder=asc&output=json&pagesize=20
+      this.axios.get(`https://products.wildtangent.com/tags/v1.0/wildgames/us/en-us/${gamesArr[i]}?sort=mostpopular&sortorder=asc&output=json&pagesize=20&scope=all`).then(function (response) {
+        //check if item has wild benifits
+        let prods = response.data.results[0].products.results;
+        //console.log(prods.length);
+        for (let x = 0; x < prods.length; x++) {
+          let item = prods[x];
+          var rentWild = item.prices.some(function (el) {
+            return el.ordercode === "rentwild";
+          }),
+              wmp = item.prices.some(function (el) {
+            return el.ordercode === "wmp";
+          }),
+              unlimitedPlay = item.tags.some(function (el) {
+            return el.key === "unlimitedplay";
+          });
+
+          if (rentWild || unlimitedPlay || wmp) {
+            if (!THIS.games.filter(game => game.productkey === prods[x].productkey).length > 0) {
+              THIS.games.push({
+                'productkey': prods[x].productkey,
+                'gameChannel': gamesArr[i],
+                'i': i
+              });
+              THIS.games.sort(function (a, b) {
+                if (a.i < b.i) return -1;
+                if (a.i > b.i) return 1;
+                return 0;
+              });
+              break;
+            }
+          }
+        }
+      });
+    }
+  }
+});
+
+/***/ }),
+/* 22 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'keep-in-touch'
+});
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "wildfooter.jpg?568a7f089f12fc5deee1ce944f96e0c7";
+
+/***/ }),
+/* 24 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'wild-footer',
+  props: ['lang'],
+  data: function () {
+    return {
+      prices: {
+        "localhost": "$7.99",
+        ".com": "$7.99", //usd
+        ".eu": "7.99 €", //eur
+        ".de": "7.99 €", //eur
+        ".fr": "7.99 €", //eur
+        ".it": "7.99 €", //eur
+        ".es": "7.99 €", //eur
+        ".ca": "$10.99", //cad
+        ".co.uk": "£6.99", //gbp
+        ".mx": "$149", //mxn
+        ".com.br": "R$ 25,99", //brl
+        ".co.nz": "NZ$ 11.49", //nzd
+        ".com.au": "$9.99", //aud
+        ".kr": "₩8900", //krw
+        ".sg": "$11", //sgd
+        ".hk": "HK$ 60", //hkd
+        ".in": "₹499" //inr
+      },
+      domain: window.location.hostname.replace('www.wildtangent', ''),
+      content: {
+        headline: {
+          "en-us": "Ready to Join",
+          "es-mx": "Listo para unirse",
+          "de-de": "Werde jetzt Mitglied!",
+          "fr-fr": "Prêt à rejoindre",
+          "it-it": "Pronto per iscriverti",
+          "es-es": "Listo para unirse",
+          "pt-br": "Pronto para entrar"
+        },
+        cta: {
+          "en-us": "Join Now",
+          "es-mx": "ÚNETE AHORA",
+          "de-de": "MITGLIED WERDEN",
+          "fr-fr": "ADHÉRER",
+          "it-it": "ISCRIVITI ADESSO",
+          "es-es": "ÚNETE AHORA",
+          "pt-br": "ENTRAR"
+        },
+        priceDetails: {
+          "en-us": "/month. Cancel anytime.",
+          "es-mx": "/ mes. Cancelar en cualquier momento.",
+          "de-de": "/Monat. Jederzeit kündbar.",
+          "fr-fr": " / mois. Annuler à tout moment.",
+          "it-it": "/ mese. Annulla in qualsiasi momento.",
+          "es-es": "/ mes. Cancelar en cualquier momento.",
+          "pt-br": "/mês. Cancelar a qualquer momento."
+        }
+      }
+    };
+  }
+});
+
+/***/ }),
+/* 25 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__unlimited_play_Header_vue__ = __webpack_require__(116);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__unlimited_play_Benefits_vue__ = __webpack_require__(120);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__unlimited_play_popularGames_vue__ = __webpack_require__(132);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__unlimited_play_Footer_vue__ = __webpack_require__(138);
+//
+//
+//
+//
+//
+//
+//
+//
+
+
+
+
+
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'main-page',
+  data: function () {
+    return {
+      msg: 'No limits, ad-free gaming for wild members',
+      show: false,
+      lang: function () {
+        var userLanguage;
+        if (typeof dataLayer !== 'undefined') {
+          userLanguage = dataLayer[0].userLanguage.toLowerCase();
+        } else {
+          userLanguage = "en-us";
+        }
+        return userLanguage;
+      }
+    };
+  },
+  components: {
+    'wild-header': __WEBPACK_IMPORTED_MODULE_0__unlimited_play_Header_vue__["a" /* default */],
+    'benefits-section': __WEBPACK_IMPORTED_MODULE_1__unlimited_play_Benefits_vue__["a" /* default */],
+    'popular-games': __WEBPACK_IMPORTED_MODULE_2__unlimited_play_popularGames_vue__["a" /* default */],
+    'wild-footer': __WEBPACK_IMPORTED_MODULE_3__unlimited_play_Footer_vue__["a" /* default */]
+  },
+  methods: {
+    handleScroll: function (evt) {
+      let headerHeight = this.$refs.wildHeader.$el.offsetHeight,
+          headerTop = this.$refs.wildHeader.$el.offsetTop,
+          headerYPos = headerHeight + headerTop,
+          benefitsSectionTop = this.$refs.benefitsSection.$el.offsetTop;
+
+      this.show = !!(window.pageYOffset >= benefitsSectionTop);
+    }
+  },
+  created: function () {
+    window.addEventListener('scroll', this.handleScroll);
+  }
+});
+
+/***/ }),
+/* 26 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'wild-header',
+  props: ['lang'],
+  data: function () {
+    return {
+      prices: {
+        "localhost": "$7.99",
+        ".com": "$7.99", //usd
+        ".eu": "7.99 €", //eur
+        ".de": "7.99 €", //eur
+        ".fr": "7.99 €", //eur
+        ".it": "7.99 €", //eur
+        ".es": "7.99 €", //eur
+        ".ca": "$10.99", //cad
+        ".co.uk": "£6.99", //gbp
+        ".mx": "$149", //mxn
+        ".com.br": "R$ 25,99", //brl
+        ".co.nz": "NZ$ 11.49", //nzd
+        ".com.au": "$9.99", //aud
+        ".kr": "₩8900", //krw
+        ".sg": "$11", //sgd
+        ".hk": "HK$ 60", //hkd
+        ".in": "₹499" //inr
+      },
+      content: {
+        headline: {
+          "en-us": "Unlimited Play with wild Membership",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        },
+        copy: {
+          "en-us": "Play as much as you want on over 2,000 select PC games with new games added weekly!",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        },
+        cta: {
+          "en-us": "Join Now",
+          "es-mx": "ÚNETE AHORA",
+          "de-de": "MITGLIED WERDEN",
+          "fr-fr": "ADHÉRER",
+          "it-it": "ISCRIVITI ADESSO",
+          "es-es": "ÚNETE AHORA",
+          "pt-br": "ENTRAR"
+        },
+        priceDetails: {
+          "en-us": "/month. Cancel anytime.",
+          "es-mx": "/ mes. Cancelar en cualquier momento.",
+          "de-de": "/Monat. Jederzeit kündbar.",
+          "fr-fr": " / mois. Annuler à tout moment.",
+          "it-it": "/ mese. Annulla in qualsiasi momento.",
+          "es-es": "/ mes. Cancelar en cualquier momento.",
+          "pt-br": "/mês. Cancelar a qualquer momento."
+        }
+      },
+      domain: window.location.hostname.replace('www.wildtangent', '')
+    };
+  }
+});
+
+/***/ }),
+/* 27 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__BenefitItem_vue__ = __webpack_require__(123);
+//
+//
+//
+//
+//
+//
+
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'benefits-section',
+  props: ['lang'],
+  components: {
+    'benefit-item': __WEBPACK_IMPORTED_MODULE_0__BenefitItem_vue__["a" /* default */]
+  },
+  data: function () {
+    return {
+      headline: {
+        "en-us": "How It Works",
+        "es-mx": "",
+        "de-de": "",
+        "fr-fr": "",
+        "it-it": "",
+        "es-es": "",
+        "pt-br": ""
+      },
+      wildBenefits: [{
+        id: 'signUp',
+        h3: {
+          "en-us": "Sign up for Your wild membership",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        },
+        a: {
+          href: "/wildsignup",
+          label: "Signup Icon"
+        }
+      }, {
+        id: 'explore',
+        h3: {
+          "en-us": "Explore unlimited play games",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        }
+      }, {
+        id: 'download',
+        h3: {
+          "en-us": "Download, Play and have fun",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        }
+      }, {
+        id: 'repeat',
+        h3: {
+          "en-us": "Repeat step 2 and 3",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        }
+      }]
+    };
+  }
+});
+
+/***/ }),
+/* 28 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'benefit-item',
+  props: ['wildBenefit', 'lang'],
+  data: function () {
+    return {
+      lang: function () {
+        var userLanguage;
+        if (typeof dataLayer !== 'undefined') {
+          lang = dataLayer[0].userLanguage.toLowerCase();
+        } else {
+          userLanguage = "en-us";
+        }
+        return userLanguage;
+      }
+    };
+  }
+});
+
+/***/ }),
+/* 29 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_graphql_request__ = __webpack_require__(136);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_graphql_request___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_graphql_request__);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'popular-games',
+  props: ['lang'],
+  data: function () {
+    return {
+      games: [],
+      content: {
+        headline: {
+          "en-us": "and even more benefits!",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        },
+        text: {
+          "en-us": "Subscribe to wild at a low monthly price and get unlimited access to play these top games plus more! Browse Unlimited Play games. wild Members also enjoy up to 30% exclusive member discounts on game purchases and rentals!",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        }
+      }
+    };
+  },
+  created: function () {
+    let THIS = this;
+    async function getGames() {
+      const endpoint = 'https://api.wildtangent.com/products-graphql/v1/graphql';
+
+      const graphQLClient = new __WEBPACK_IMPORTED_MODULE_0_graphql_request__["GraphQLClient"](endpoint, {
+        headers: {
+          'X-scalatra-workaround': 'requires-at-least-one-header'
+        }
+      });
+
+      const query = `
+          query games{
+            find(sortBy: "ranking", unlimitedPlay: true, pageSize: 8) {
+              totalCount
+              products {
+                orderItemId
+                title
+              }
+            }
+          }
+          `;
+      const data = await graphQLClient.request(query);
+
+      THIS.games = data.find.products;
+      //console.log(JSON.stringify(data, undefined, 2))
+      //this.games = JSON.stringify(data, undefined, 2);
+    }
+    getGames().catch(error => console.error(error));
+  }
+});
+
+/***/ }),
+/* 30 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    }
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+var ClientError = /** @class */ (function (_super) {
+    __extends(ClientError, _super);
+    function ClientError(response, request) {
+        var _this = this;
+        var message = ClientError.extractMessage(response) + ": " + JSON.stringify({
+            response: response,
+            request: request,
+        });
+        _this = _super.call(this, message) || this;
+        Object.setPrototypeOf(_this, ClientError.prototype);
+        _this.response = response;
+        _this.request = request;
+        // this is needed as Safari doesn't support .captureStackTrace
+        /* tslint:disable-next-line */
+        if (typeof Error.captureStackTrace === 'function') {
+            Error.captureStackTrace(_this, ClientError);
+        }
+        return _this;
+    }
+    ClientError.extractMessage = function (response) {
+        try {
+            return response.errors[0].message;
+        }
+        catch (e) {
+            return "GraphQL Error (Code: " + response.status + ")";
+        }
+    };
+    return ClientError;
+}(Error));
+exports.ClientError = ClientError;
+//# sourceMappingURL=types.js.map
+
+/***/ }),
+/* 31 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+/* harmony default export */ __webpack_exports__["a"] = ({
+  name: 'wild-footer',
+  props: ['lang'],
+  data: function () {
+    return {
+      prices: {
+        "localhost": "$7.99",
+        ".com": "$7.99", //usd
+        ".eu": "7.99 €", //eur
+        ".de": "7.99 €", //eur
+        ".fr": "7.99 €", //eur
+        ".it": "7.99 €", //eur
+        ".es": "7.99 €", //eur
+        ".ca": "$10.99", //cad
+        ".co.uk": "£6.99", //gbp
+        ".mx": "$149", //mxn
+        ".com.br": "R$ 25,99", //brl
+        ".co.nz": "NZ$ 11.49", //nzd
+        ".com.au": "$9.99", //aud
+        ".kr": "₩8900", //krw
+        ".sg": "$11", //sgd
+        ".hk": "HK$ 60", //hkd
+        ".in": "₹499" //inr
+      },
+      domain: window.location.hostname.replace('www.wildtangent', ''),
+      content: {
+        headline: {
+          "en-us": "Start Playing Unlimited",
+          "es-mx": "",
+          "de-de": "",
+          "fr-fr": "",
+          "it-it": "",
+          "es-es": "",
+          "pt-br": ""
+        },
+        cta: {
+          "en-us": "Join Now",
+          "es-mx": "ÚNETE AHORA",
+          "de-de": "MITGLIED WERDEN",
+          "fr-fr": "ADHÉRER",
+          "it-it": "ISCRIVITI ADESSO",
+          "es-es": "ÚNETE AHORA",
+          "pt-br": "ENTRAR"
+        },
+        priceDetails: {
+          "en-us": "/month. Cancel anytime.",
+          "es-mx": "/ mes. Cancelar en cualquier momento.",
+          "de-de": "/Monat. Jederzeit kündbar.",
+          "fr-fr": " / mois. Annuler à tout moment.",
+          "it-it": "/ mese. Annulla in qualsiasi momento.",
+          "es-es": "/ mes. Cancelar en cualquier momento.",
+          "pt-br": "/mês. Cancelar a qualquer momento."
+        }
+      }
+    };
+  }
+});
+
+/***/ }),
+/* 32 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue__ = __webpack_require__(16);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_es6_promise_auto__ = __webpack_require__(19);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue__ = __webpack_require__(33);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_es6_promise_auto__ = __webpack_require__(36);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_es6_promise_auto___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_es6_promise_auto__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_axios__ = __webpack_require__(21);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_axios__ = __webpack_require__(38);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2_axios___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_2_axios__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_vue_axios__ = __webpack_require__(40);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_vue_axios__ = __webpack_require__(57);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_vue_axios___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_3_vue_axios__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__App_benifits_only_vue__ = __webpack_require__(41);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__App_vue__ = __webpack_require__(58);
 
 
 
 
+//import App from './App-benifits-only.vue'
 
-//import App from './App.vue'
 
+//apollo and graphql
+// import { createProvider } from 'vue-apollo';
+// import { ApolloClient } from 'apollo-client';
+// import { HttpLink } from 'apollo-link-http';
+// import { InMemoryCache } from 'apollo-cache-inmemory';
+// import { createHttpLink } from 'apollo-link-http'
+//
+// import VueApollo from 'vue-apollo';
+//
+//
+// const httpLink = createHttpLink({
+//   //link to GraphQL
+//   uri: 'https://api.wildtangent.com/products-graphql/v1/graphql'
+// });
+//
+// const cache = new InMemoryCache();
+//
+// const apolloClient = new ApolloClient({
+//   link: httpLink,
+//   cache: cache,
+//   connectToDevTools: true
+// });
+
+
+// Vue.use(VueAxios, axios, VueApollo);
 __WEBPACK_IMPORTED_MODULE_0_vue__["a" /* default */].use(__WEBPACK_IMPORTED_MODULE_3_vue_axios___default.a, __WEBPACK_IMPORTED_MODULE_2_axios___default.a);
+
+// const apolloProvider = new VueApollo({
+//   defaultClient: apolloClient
+// });
 
 new __WEBPACK_IMPORTED_MODULE_0_vue__["a" /* default */]({
   el: '#app',
-  render: h => h(__WEBPACK_IMPORTED_MODULE_4__App_benifits_only_vue__["a" /* default */])
+  //apolloProvider,
+  render: h => h(__WEBPACK_IMPORTED_MODULE_4__App_vue__["a" /* default */])
 });
 
 /***/ }),
-/* 16 */
+/* 33 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -12542,10 +13660,10 @@ Vue.compile = compileToFunctions;
 
 /* harmony default export */ __webpack_exports__["a"] = (Vue);
 
-/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(1), __webpack_require__(17).setImmediate))
+/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(5), __webpack_require__(34).setImmediate))
 
 /***/ }),
-/* 17 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global) {var scope = (typeof global !== "undefined" && global) ||
@@ -12601,7 +13719,7 @@ exports._unrefActive = exports.active = function(item) {
 };
 
 // setimmediate attaches itself to the global object
-__webpack_require__(18);
+__webpack_require__(35);
 // On some exotic environments, it's not clear which object `setimmediate` was
 // able to install onto.  Search each possibility in the same order as the
 // `setimmediate` library.
@@ -12612,10 +13730,10 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
                          (typeof global !== "undefined" && global.clearImmediate) ||
                          (this && this.clearImmediate);
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ }),
-/* 18 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global, process) {(function (global, undefined) {
@@ -12805,21 +13923,21 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
     attachTo.clearImmediate = clearImmediate;
 }(typeof self === "undefined" ? typeof global === "undefined" ? this : global : self));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1), __webpack_require__(2)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), __webpack_require__(6)))
 
 /***/ }),
-/* 19 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 // This file can be required in Browserify and Node.js for automatic polyfill
 // To use it:  require('es6-promise/auto');
 
-module.exports = __webpack_require__(20).polyfill();
+module.exports = __webpack_require__(37).polyfill();
 
 
 /***/ }),
-/* 20 */
+/* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(process, global) {/*!
@@ -13892,9 +15010,9 @@ var Promise$1 = function () {
   /**
     `finally` will be invoked regardless of the promise's fate just as native
     try/catch/finally behaves
-
+  
     Synchronous example:
-
+  
     ```js
     findAuthor() {
       if (Math.random() > 0.5) {
@@ -13902,7 +15020,7 @@ var Promise$1 = function () {
       }
       return new Author();
     }
-
+  
     try {
       return findAuthor(); // succeed or fail
     } catch(error) {
@@ -13912,9 +15030,9 @@ var Promise$1 = function () {
       // doesn't affect the return value
     }
     ```
-
+  
     Asynchronous example:
-
+  
     ```js
     findAuthor().catch(function(reason){
       return findOtherAuther();
@@ -13922,7 +15040,7 @@ var Promise$1 = function () {
       // author was either found, or not
     });
     ```
-
+  
     @method finally
     @param {Function} callback
     @return {Promise}
@@ -14006,25 +15124,25 @@ return Promise$1;
 
 //# sourceMappingURL=es6-promise.map
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2), __webpack_require__(1)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6), __webpack_require__(5)))
 
 /***/ }),
-/* 21 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(22);
+module.exports = __webpack_require__(39);
 
 /***/ }),
-/* 22 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
-var bind = __webpack_require__(7);
-var Axios = __webpack_require__(24);
-var defaults = __webpack_require__(3);
+var utils = __webpack_require__(3);
+var bind = __webpack_require__(8);
+var Axios = __webpack_require__(41);
+var defaults = __webpack_require__(7);
 
 /**
  * Create an instance of Axios
@@ -14057,15 +15175,15 @@ axios.create = function create(instanceConfig) {
 };
 
 // Expose Cancel & CancelToken
-axios.Cancel = __webpack_require__(11);
-axios.CancelToken = __webpack_require__(38);
-axios.isCancel = __webpack_require__(10);
+axios.Cancel = __webpack_require__(12);
+axios.CancelToken = __webpack_require__(55);
+axios.isCancel = __webpack_require__(11);
 
 // Expose all/spread
 axios.all = function all(promises) {
   return Promise.all(promises);
 };
-axios.spread = __webpack_require__(39);
+axios.spread = __webpack_require__(56);
 
 module.exports = axios;
 
@@ -14074,7 +15192,7 @@ module.exports.default = axios;
 
 
 /***/ }),
-/* 23 */
+/* 40 */
 /***/ (function(module, exports) {
 
 /*!
@@ -14101,16 +15219,16 @@ function isSlowBuffer (obj) {
 
 
 /***/ }),
-/* 24 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var defaults = __webpack_require__(3);
-var utils = __webpack_require__(0);
-var InterceptorManager = __webpack_require__(33);
-var dispatchRequest = __webpack_require__(34);
+var defaults = __webpack_require__(7);
+var utils = __webpack_require__(3);
+var InterceptorManager = __webpack_require__(50);
+var dispatchRequest = __webpack_require__(51);
 
 /**
  * Create a new instance of Axios
@@ -14187,13 +15305,13 @@ module.exports = Axios;
 
 
 /***/ }),
-/* 25 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 module.exports = function normalizeHeaderName(headers, normalizedName) {
   utils.forEach(headers, function processHeader(value, name) {
@@ -14206,13 +15324,13 @@ module.exports = function normalizeHeaderName(headers, normalizedName) {
 
 
 /***/ }),
-/* 26 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var createError = __webpack_require__(9);
+var createError = __webpack_require__(10);
 
 /**
  * Resolve or reject a Promise based on response status.
@@ -14239,7 +15357,7 @@ module.exports = function settle(resolve, reject, response) {
 
 
 /***/ }),
-/* 27 */
+/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14267,13 +15385,13 @@ module.exports = function enhanceError(error, config, code, request, response) {
 
 
 /***/ }),
-/* 28 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 function encode(val) {
   return encodeURIComponent(val).
@@ -14340,13 +15458,13 @@ module.exports = function buildURL(url, params, paramsSerializer) {
 
 
 /***/ }),
-/* 29 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 // Headers whose duplicates are ignored by node
 // c.f. https://nodejs.org/api/http.html#http_message_headers
@@ -14400,13 +15518,13 @@ module.exports = function parseHeaders(headers) {
 
 
 /***/ }),
-/* 30 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -14475,7 +15593,7 @@ module.exports = (
 
 
 /***/ }),
-/* 31 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14518,13 +15636,13 @@ module.exports = btoa;
 
 
 /***/ }),
-/* 32 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 module.exports = (
   utils.isStandardBrowserEnv() ?
@@ -14578,13 +15696,13 @@ module.exports = (
 
 
 /***/ }),
-/* 33 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 function InterceptorManager() {
   this.handlers = [];
@@ -14637,18 +15755,18 @@ module.exports = InterceptorManager;
 
 
 /***/ }),
-/* 34 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
-var transformData = __webpack_require__(35);
-var isCancel = __webpack_require__(10);
-var defaults = __webpack_require__(3);
-var isAbsoluteURL = __webpack_require__(36);
-var combineURLs = __webpack_require__(37);
+var utils = __webpack_require__(3);
+var transformData = __webpack_require__(52);
+var isCancel = __webpack_require__(11);
+var defaults = __webpack_require__(7);
+var isAbsoluteURL = __webpack_require__(53);
+var combineURLs = __webpack_require__(54);
 
 /**
  * Throws a `Cancel` if cancellation has been requested.
@@ -14730,13 +15848,13 @@ module.exports = function dispatchRequest(config) {
 
 
 /***/ }),
-/* 35 */
+/* 52 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var utils = __webpack_require__(0);
+var utils = __webpack_require__(3);
 
 /**
  * Transform the data for a request or a response
@@ -14757,7 +15875,7 @@ module.exports = function transformData(data, headers, fns) {
 
 
 /***/ }),
-/* 36 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14778,7 +15896,7 @@ module.exports = function isAbsoluteURL(url) {
 
 
 /***/ }),
-/* 37 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14799,13 +15917,13 @@ module.exports = function combineURLs(baseURL, relativeURL) {
 
 
 /***/ }),
-/* 38 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var Cancel = __webpack_require__(11);
+var Cancel = __webpack_require__(12);
 
 /**
  * A `CancelToken` is an object that can be used to request cancellation of an operation.
@@ -14863,7 +15981,7 @@ module.exports = CancelToken;
 
 
 /***/ }),
-/* 39 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14897,7 +16015,7 @@ module.exports = function spread(callback) {
 
 
 /***/ }),
-/* 40 */
+/* 57 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14905,17 +16023,17 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;var _typeof="fun
 				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)):window.Vue&&window.axios&&Vue.use(o,window.axios)}();
 
 /***/ }),
-/* 41 */
+/* 58 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_App_benifits_only_vue__ = __webpack_require__(12);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_App_vue__ = __webpack_require__(13);
 /* unused harmony namespace reexport */
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_bba3c4fe_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_App_benifits_only_vue__ = __webpack_require__(58);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_11cd7aaa_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_App_vue__ = __webpack_require__(143);
 function injectStyle (ssrContext) {
-  __webpack_require__(42)
+  __webpack_require__(59)
 }
-var normalizeComponent = __webpack_require__(6)
+var normalizeComponent = __webpack_require__(2)
 /* script */
 
 
@@ -14930,8 +16048,8 @@ var __vue_scopeId__ = null
 /* moduleIdentifier (server only) */
 var __vue_module_identifier__ = null
 var Component = normalizeComponent(
-  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_App_benifits_only_vue__["a" /* default */],
-  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_bba3c4fe_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_App_benifits_only_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_App_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_11cd7aaa_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_App_vue__["a" /* default */],
   __vue_template_functional__,
   __vue_styles__,
   __vue_scopeId__,
@@ -14942,34 +16060,34 @@ var Component = normalizeComponent(
 
 
 /***/ }),
-/* 42 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(43);
+var content = __webpack_require__(60);
 if(typeof content === 'string') content = [[module.i, content, '']];
 if(content.locals) module.exports = content.locals;
 // add the styles to the DOM
-var update = __webpack_require__(5)("0f0bb4f5", content, true, {});
+var update = __webpack_require__(1)("479decf4", content, true, {});
 
 /***/ }),
-/* 43 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(4)(false);
+exports = module.exports = __webpack_require__(0)(false);
 // imports
 exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700|Open+Sans:400,600,700);", ""]);
 
 // module
-exports.push([module.i, "body,html{margin:0;padding:0}section.lpWrapper{font-size:16px;background:#f1f1f1;font-family:Open Sans,sans-serif}section.lpWrapper h2{font-family:Open Sans Condensed,sans-serif;font-size:3.15em;text-transform:uppercase;font-weight:700}section.lpWrapper .stickyWrap{position:fixed;width:100%;top:0;transition:transform .3s ease;z-index:20000}section.lpWrapper .stickyWrap.buttonSlideIn{transform:translateY(0)}section.lpWrapper .stickyWrap.buttonSlideOut{transform:translateY(-100px)}", ""]);
+exports.push([module.i, "body,html{margin:0;padding:0}#app.unlimitedPlay main-page{display:none}", ""]);
 
 // exports
 
 
 /***/ }),
-/* 44 */
+/* 61 */
 /***/ (function(module, exports) {
 
 /**
@@ -15002,17 +16120,17 @@ module.exports = function listToStyles (parentId, list) {
 
 
 /***/ }),
-/* 45 */
+/* 62 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__ = __webpack_require__(13);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_MainPage_vue__ = __webpack_require__(14);
 /* unused harmony namespace reexport */
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_22e4bbde_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__ = __webpack_require__(57);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_d884263e_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_MainPage_vue__ = __webpack_require__(112);
 function injectStyle (ssrContext) {
-  __webpack_require__(46)
+  __webpack_require__(63)
 }
-var normalizeComponent = __webpack_require__(6)
+var normalizeComponent = __webpack_require__(2)
 /* script */
 
 
@@ -15023,12 +16141,12 @@ var __vue_template_functional__ = false
 /* styles */
 var __vue_styles__ = injectStyle
 /* scopeId */
-var __vue_scopeId__ = "data-v-22e4bbde"
+var __vue_scopeId__ = null
 /* moduleIdentifier (server only) */
 var __vue_module_identifier__ = null
 var Component = normalizeComponent(
-  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__["a" /* default */],
-  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_22e4bbde_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_MainPage_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_d884263e_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_MainPage_vue__["a" /* default */],
   __vue_template_functional__,
   __vue_styles__,
   __vue_scopeId__,
@@ -15039,44 +16157,183 @@ var Component = normalizeComponent(
 
 
 /***/ }),
-/* 46 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(47);
+var content = __webpack_require__(64);
 if(typeof content === 'string') content = [[module.i, content, '']];
 if(content.locals) module.exports = content.locals;
 // add the styles to the DOM
-var update = __webpack_require__(5)("40740c50", content, true, {});
+var update = __webpack_require__(1)("57849c3e", content, true, {});
 
 /***/ }),
-/* 47 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(4)(false);
+exports = module.exports = __webpack_require__(0)(false);
 // imports
-
+exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700|Open+Sans:400,600,700);", ""]);
 
 // module
-exports.push([module.i, "section#benefitsSection[data-v-22e4bbde]{max-width:1300px;background:#f1f1f1;margin:0 auto;box-sizing:border-box;padding:10px 20px;display:flex;flex-wrap:wrap;justify-content:center;align-content:baseline}section#benefitsSection h2[data-v-22e4bbde]{width:100%;text-align:center;font-size:48px;margin:0;text-transform:none;color:#0d0d14}section#benefitsSection>div[data-v-22e4bbde]{width:27%;margin:0 2%}@media only screen and (max-width:767px){section#benefitsSection[data-v-22e4bbde]{padding:10px 5px}section#benefitsSection>div[data-v-22e4bbde]{width:28%;margin:0 2%}}", ""]);
+exports.push([module.i, "body,html{margin:0;padding:0}section.lpWrapper{font-size:16px;background:#f1f1f1;font-family:Open Sans,sans-serif}section.lpWrapper h2{font-family:Open Sans Condensed,sans-serif;font-size:3.15em;text-transform:uppercase;font-weight:700}section.lpWrapper .stickyWrap{position:fixed;width:100%;top:0;transition:transform .3s ease;z-index:20000}section.lpWrapper .stickyWrap.buttonSlideIn{transform:translateY(0)}section.lpWrapper .stickyWrap.buttonSlideOut{transform:translateY(-100px)}", ""]);
 
 // exports
 
 
 /***/ }),
-/* 48 */
+/* 65 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_BenefitItem_vue__ = __webpack_require__(14);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Header_vue__ = __webpack_require__(16);
 /* unused harmony namespace reexport */
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5b50bfb4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_BenefitItem_vue__ = __webpack_require__(56);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_4dc3fa4e_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Header_vue__ = __webpack_require__(68);
 function injectStyle (ssrContext) {
-  __webpack_require__(49)
+  __webpack_require__(66)
 }
-var normalizeComponent = __webpack_require__(6)
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-4dc3fa4e"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Header_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_4dc3fa4e_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Header_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 66 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(67);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("541c7dd4", content, true, {});
+
+/***/ }),
+/* 67 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "header.lpHeader[data-v-4dc3fa4e]{display:block;background:#0f2959 url(" + escape(__webpack_require__(15)) + ") no-repeat;background-size:cover;background-position:50%;min-height:250px;box-sizing:border-box;padding:25px 110px 0;color:#fff;margin:0}header.lpHeader .head-inner[data-v-4dc3fa4e]{max-width:1100px;margin:0 auto}header.lpHeader h2[data-v-4dc3fa4e]{text-transform:capitalize;font-weight:700;line-height:1;text-align:left;letter-spacing:-1px;margin:0 0 14px;width:530px;color:#fff}header.lpHeader a.trialBtn[data-v-4dc3fa4e]{background-color:#66bc23;color:#fff;font-family:wf_SegoeUI,Segoe UI,Segoe,Segoe WP,Tahoma,Verdana,Arial,\"sans-serif\";font-size:18px;letter-spacing:0;text-transform:uppercase;font-weight:500;padding:5px 30px;border-radius:2px;line-height:1.273;text-align:center;text-decoration:none;-webkit-transition:background .2s ease-out;transition:background .2s ease-out;-webkit-box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12)}header.lpHeader a.trialBtn[data-v-4dc3fa4e]:focus,header.lpHeader a.trialBtn[data-v-4dc3fa4e]:hover{background:#7fda38}header.lpHeader p[data-v-4dc3fa4e]{font-size:10px;line-height:15px;color:#fff;text-align:center;display:block;width:150px}@media only screen and (max-width:979px){header.lpHeader[data-v-4dc3fa4e]{padding:25px 50px 0}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 68 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('header',{class:((_vm.lang()) + " lpHeader")},[_c('div',{staticClass:"head-inner"},[_c('h2',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('a',{staticClass:"trialBtn",attrs:{"href":"/wildsignup","data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Join Now"}},[_vm._v("\n      "+_vm._s(this.content.cta[_vm.lang()])+"\n    ")]),_vm._v(" "),_c('p',[_c('span',{staticClass:"wildPrice"},[_vm._v(_vm._s(this.prices[this.domain]))]),_vm._v(_vm._s(this.content.priceDetails[_vm.lang()])+"\n    ")])])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 69 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__ = __webpack_require__(17);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_133893d4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__ = __webpack_require__(80);
+function injectStyle (ssrContext) {
+  __webpack_require__(70)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-133893d4"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_133893d4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 70 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(71);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("0a8713d9", content, true, {});
+
+/***/ }),
+/* 71 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section#benefitsSection[data-v-133893d4]{max-width:1300px;background:#f1f1f1;margin:0 auto;box-sizing:border-box;padding:10px 20px;display:flex;flex-wrap:wrap;justify-content:center;align-content:baseline}section#benefitsSection h2[data-v-133893d4]{width:100%;text-align:center;font-size:48px;margin:0;text-transform:none;color:#0d0d14}section#benefitsSection>div[data-v-133893d4]{width:27%;margin:0 2%}@media only screen and (max-width:767px){section#benefitsSection[data-v-133893d4]{padding:10px 5px}section#benefitsSection>div[data-v-133893d4]{width:28%;margin:0 2%}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 72 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_BenefitItem_vue__ = __webpack_require__(18);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5b50bfb4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_BenefitItem_vue__ = __webpack_require__(79);
+function injectStyle (ssrContext) {
+  __webpack_require__(73)
+}
+var normalizeComponent = __webpack_require__(2)
 /* script */
 
 
@@ -15103,81 +16360,59 @@ var Component = normalizeComponent(
 
 
 /***/ }),
-/* 49 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(50);
+var content = __webpack_require__(74);
 if(typeof content === 'string') content = [[module.i, content, '']];
 if(content.locals) module.exports = content.locals;
 // add the styles to the DOM
-var update = __webpack_require__(5)("31dfdaf0", content, true, {});
+var update = __webpack_require__(1)("31dfdaf0", content, true, {});
 
 /***/ }),
-/* 50 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var escape = __webpack_require__(51);
-exports = module.exports = __webpack_require__(4)(false);
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
 // imports
 
 
 // module
-exports.push([module.i, "div.benefit[data-v-5b50bfb4]{font-size:16px}div.benefit h3[data-v-5b50bfb4]{font-weight:700;font-size:1.17em}div.benefit h3[data-v-5b50bfb4],div.benefit p[data-v-5b50bfb4]{text-align:center;color:#0d0d14;font-family:Open Sans,sans-serif}div.benefit p[data-v-5b50bfb4]{font-size:1em;line-height:1.4em;margin:1em 0}div.benefit p a[data-v-5b50bfb4]{color:#2359bc;text-decoration:none}.unlimitedPlay .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(52)) + ") no-repeat;background-size:85%}.adFreeGaming .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(53)) + ") no-repeat;background-size:70%}.rental .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(54)) + ") no-repeat;background-size:75%}.purchaseDiscounts .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(55)) + ") no-repeat;background-size:63%}.benefit .icon[data-v-5b50bfb4]{margin:0 auto;width:203px;height:160px;background-position:50%}@media only screen and (max-width:979px){.benefit .icon[data-v-5b50bfb4]{margin:10px auto 0;width:150px;height:118px;background-position:50%}}@media only screen and (max-width:767px){.adFreeGaming .icon[data-v-5b50bfb4]{background-size:78%}div.benefit h3[data-v-5b50bfb4]{height:25px}div.benefit p[data-v-5b50bfb4]{font-size:.875em}}@media only screen and (max-width:699px){div.benefit h3[data-v-5b50bfb4]{font-size:1em}}@media only screen and (max-width:570px){div.benefit h3[data-v-5b50bfb4]{height:32px}}", ""]);
+exports.push([module.i, "div.benefit[data-v-5b50bfb4]{font-size:16px}div.benefit h3[data-v-5b50bfb4]{font-weight:700;font-size:1.17em}div.benefit h3[data-v-5b50bfb4],div.benefit p[data-v-5b50bfb4]{text-align:center;color:#0d0d14;font-family:Open Sans,sans-serif}div.benefit p[data-v-5b50bfb4]{font-size:1em;line-height:1.4em;margin:1em 0}div.benefit p a[data-v-5b50bfb4]{color:#2359bc;text-decoration:none}.unlimitedPlay .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(75)) + ") no-repeat;background-size:85%}.adFreeGaming .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(76)) + ") no-repeat;background-size:70%}.rental .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(77)) + ") no-repeat;background-size:75%}.purchaseDiscounts .icon[data-v-5b50bfb4]{background:url(" + escape(__webpack_require__(78)) + ") no-repeat;background-size:63%}.benefit .icon[data-v-5b50bfb4]{margin:0 auto;width:203px;height:160px;background-position:50%}@media only screen and (max-width:979px){.benefit .icon[data-v-5b50bfb4]{margin:10px auto 0;width:150px;height:118px;background-position:50%}}@media only screen and (max-width:767px){.adFreeGaming .icon[data-v-5b50bfb4]{background-size:78%}div.benefit h3[data-v-5b50bfb4]{height:25px}div.benefit p[data-v-5b50bfb4]{font-size:.875em}}@media only screen and (max-width:699px){div.benefit h3[data-v-5b50bfb4]{font-size:1em}}@media only screen and (max-width:570px){div.benefit h3[data-v-5b50bfb4]{height:32px}}", ""]);
 
 // exports
 
 
 /***/ }),
-/* 51 */
-/***/ (function(module, exports) {
-
-module.exports = function escape(url) {
-    if (typeof url !== 'string') {
-        return url
-    }
-    // If url is already wrapped in quotes, remove them
-    if (/^['"].*['"]$/.test(url)) {
-        url = url.slice(1, -1);
-    }
-    // Should url be wrapped?
-    // See https://drafts.csswg.org/css-values-3/#urls
-    if (/["'() \t\n]/.test(url)) {
-        return '"' + url.replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"'
-    }
-
-    return url
-}
-
-
-/***/ }),
-/* 52 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__.p + "unlimited-play-3.png?1a8146d347b5fd88f7262e2a3e43c4f4";
 
 /***/ }),
-/* 53 */
+/* 76 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__.p + "ad-free-gaming-2.png?b7400dd0ba5ffff5787d4fd23f888a2a";
 
 /***/ }),
-/* 54 */
+/* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__.p + "rental-to-purchace-2.png?01d5db3ebabafacbae1a9cdb95374d01";
 
 /***/ }),
-/* 55 */
+/* 78 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__.p + "discounts-2.png?7204be38baaa798d19c6451c167ec499";
 
 /***/ }),
-/* 56 */
+/* 79 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -15187,7 +16422,7 @@ var esExports = { render: render, staticRenderFns: staticRenderFns }
 /* harmony default export */ __webpack_exports__["a"] = (esExports);
 
 /***/ }),
-/* 57 */
+/* 80 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -15197,11 +16432,1108 @@ var esExports = { render: render, staticRenderFns: staticRenderFns }
 /* harmony default export */ __webpack_exports__["a"] = (esExports);
 
 /***/ }),
-/* 58 */
+/* 81 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{attrs:{"id":"app"}},[_c('section',{staticClass:"lpWrapper"},[_c('benefits-section',{ref:"benefitsSection",attrs:{"lang":this.lang}})],1)])}
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_StickyButton_vue__ = __webpack_require__(19);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_579bd0eb_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_StickyButton_vue__ = __webpack_require__(85);
+function injectStyle (ssrContext) {
+  __webpack_require__(82)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-579bd0eb"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_StickyButton_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_579bd0eb_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_StickyButton_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 82 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(83);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("705f42dc", content, true, {});
+
+/***/ }),
+/* 83 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "div.buttonWrap[data-v-579bd0eb]{background:#0d0d14;display:flex;justify-content:flex-end}div.buttonWrap a.stickyButton[data-v-579bd0eb]{background:#66bc23;color:#fff;font-family:wf_SegoeUI,Segoe UI,Segoe,Segoe WP,Tahoma,Verdana,Arial,\"sans-serif\";font-size:18px;letter-spacing:0;text-transform:uppercase;font-weight:500;line-height:1.2;text-align:center;text-decoration:none;width:180px;display:block;padding:15px 10px;-webkit-transition:background .2s ease-out;transition:background .2s ease-out}div.buttonWrap a.stickyButton[data-v-579bd0eb]:hover{background:#7fda38}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 84 */
+/***/ (function(module, exports, __webpack_require__) {
+
+!function(t,e){ true?module.exports=e():"function"==typeof define&&define.amd?define([],e):"object"==typeof exports?exports.VueSticky=e():t.VueSticky=e()}(window,function(){return function(t){var e={};function n(i){if(e[i])return e[i].exports;var o=e[i]={i:i,l:!1,exports:{}};return t[i].call(o.exports,o,o.exports,n),o.l=!0,o.exports}return n.m=t,n.c=e,n.d=function(t,e,i){n.o(t,e)||Object.defineProperty(t,e,{configurable:!1,enumerable:!0,get:i})},n.r=function(t){Object.defineProperty(t,"__esModule",{value:!0})},n.n=function(t){var e=t&&t.__esModule?function(){return t.default}:function(){return t};return n.d(e,"a",e),e},n.o=function(t,e){return Object.prototype.hasOwnProperty.call(t,e)},n.p="",n(n.s=0)}([function(t,e,n){"use strict";n.r(e);var i,o,r=arguments,s=function(t){var e=t.value||{};return{stickyTop:e.stickyTop||0,zIndex:e.zIndex||1e3,disabled:e.disabled}},u=function(){window.removeEventListener("scroll",i)},c=function(){window.addEventListener("scroll",i)},d={},p={};e.default={bind:function(t,e){d=s(e),p=function(t){return{zIndex:t.style.zIndex}}(t);var n=d.disabled,u=d.stickyTop,f=d.zIndex;if(!n){var l=t.style;l.position="-webkit-sticky",l.position="sticky";var a=t.firstElementChild.style;(o=~l.position.indexOf("sticky"))?(l.top=u+"px",l.zIndex=f):(l.position="",a.cssText="left: 0; right: 0; top: "+u+"px; z-index: "+f+"; "+a.cssText);var x=!1;i=function(t,e){var n,i,o,s,u;function c(){t.apply(s,u),i=n}return void 0===e&&(e=100),function(){if(s=void 0,u=r,n=+new Date,o&&(clearTimeout(o),o=null),i){var t=e-(n-i);t<0?c():o=setTimeout(function(){c()},t)}else c()}}(function(){t.getBoundingClientRect().top<=u?o||x||(l.height||(l.height=t.offsetHeight+"px"),a&&(a.position="fixed"),x=!0):!o&&x&&(a.position="static",x=!1)}),c()}},unbind:u,update:function(t,e){var n=(d=s(e)).stickyTop,i=d.zIndex,r=t.firstElementChild.style;o?(t.style.top=n+"px",t.style.zIndex=i):(r.top=n+"px",r.zIndex=i),d.disabled?o?t.style.position="":(r.position="",r.top="",r.zIndex=p.zIndex,u()):o?(t.style.position="-webkit-sticky",t.style.position="sticky"):c()}}}])});
+
+/***/ }),
+/* 85 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"stickyWrap"},[_c('div',{staticClass:"buttonWrap"},[_c('a',{staticClass:"stickyButton",attrs:{"data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Join Now follower","href":"/wildsignup"}},[_vm._v(_vm._s(this.content.cta[_vm.lang()]))])])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 86 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Genres_vue__ = __webpack_require__(20);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_a1be31c8_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Genres_vue__ = __webpack_require__(98);
+function injectStyle (ssrContext) {
+  __webpack_require__(87)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-a1be31c8"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Genres_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_a1be31c8_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Genres_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 87 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(88);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("1d7295ee", content, true, {});
+
+/***/ }),
+/* 88 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section.genresSection[data-v-a1be31c8]{box-sizing:border-box;padding:20px 110px;background:#99afd7 url(" + escape(__webpack_require__(89)) + ") no-repeat;background-position:0 50%}section.genresSection>div[data-v-a1be31c8]{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}section.genresSection h3[data-v-a1be31c8]{text-transform:none;color:#0d0d14;font-size:32px;margin:0;line-height:1.5;display:inline-block;font-family:Open Sans,sans-serif;font-weight:700}section.genresSection .text[data-v-a1be31c8]{max-width:380px}section.genresSection .text p[data-v-a1be31c8]{margin:0 20px 0 0;text-align:left;line-height:1.35em;font-size:1em}section.genresSection .iconSection[data-v-a1be31c8]{display:flex;flex-wrap:wrap;max-width:700px}section.genresSection .iconSection>div[data-v-a1be31c8]{width:25%;margin:15px 0}section.genresSection .iconSection>div .iconImage[data-v-a1be31c8]{margin:0 auto;background-position:50%}section.genresSection .iconSection>div p[data-v-a1be31c8]{font-size:12px;text-align:center}section.genresSection .hiddenObject .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(90)) + ") no-repeat;width:60px;height:73px}section.genresSection .rpg .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(91)) + ") no-repeat;width:47px;height:73px}section.genresSection .strategy .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(92)) + ") no-repeat;width:60px;height:73px}section.genresSection .action .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(93)) + ") no-repeat;width:72px;height:73px}section.genresSection .racing .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(94)) + ") no-repeat;width:61px;height:73px}section.genresSection .cards .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(95)) + ") no-repeat;width:58px;height:73px}section.genresSection .puzzle .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(96)) + ") no-repeat;width:51px;height:73px}section.genresSection .timeManagement .iconImage[data-v-a1be31c8]{background:url(" + escape(__webpack_require__(97)) + ") no-repeat;width:61px;height:73px}@media only screen and (max-width:979px){section.genresSection[data-v-a1be31c8]{padding:20px 50px}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 89 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "blueangle.png?44157c8c9767062f5b439d77821e90ac";
+
+/***/ }),
+/* 90 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_hog.png?3283562183fcecfca5fa5d9fd4ef74ad";
+
+/***/ }),
+/* 91 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_rpg.png?b975a9e2c59fd61d8ebee4115ee38b59";
+
+/***/ }),
+/* 92 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_strategy.png?d48c702d7a665f1b01227b67e1169ae6";
+
+/***/ }),
+/* 93 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_adventure.png?25f070ec3b52409d688a502b3b192f70";
+
+/***/ }),
+/* 94 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_racing.png?a45e7254635b4abffc8a3b5ab81e6dba";
+
+/***/ }),
+/* 95 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_cards.png?3ef84b06528370298be16537a1c8acc2";
+
+/***/ }),
+/* 96 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_puzzle.png?4eb888c8105ca4817dbb3d29fdc34834";
+
+/***/ }),
+/* 97 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "icon_timemanagement.png?670a349764c907d8f05a0a71f444fd4b";
+
+/***/ }),
+/* 98 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"genresSection"},[_c('div',[_c('section',{staticClass:"text"},[_c('h3',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('p',[_vm._v(_vm._s(this.content.text[_vm.lang()]))])]),_vm._v(" "),_c('section',{staticClass:"iconSection"},_vm._l((_vm.genres),function(genre){return _c('div',{class:("iconContainier " + (genre.className))},[_c('div',{staticClass:"iconImage"}),_vm._v(" "),_c('p',[_vm._v(_vm._s(genre.text[_vm.lang()]))])])}))])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 99 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__ = __webpack_require__(21);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_d81fb7dc_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__ = __webpack_require__(103);
+function injectStyle (ssrContext) {
+  __webpack_require__(100)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-d81fb7dc"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_d81fb7dc_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 100 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(101);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("1803a8e5", content, true, {});
+
+/***/ }),
+/* 101 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section.popularGames[data-v-d81fb7dc]{background:#f1f1f1 url(" + escape(__webpack_require__(102)) + ") no-repeat;background-position:100% 0;box-sizing:border-box;padding:10px 110px}section.popularGames>div[data-v-d81fb7dc]{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}section.popularGames .games[data-v-d81fb7dc]{display:flex;flex-wrap:wrap;max-width:500px}section.popularGames .games div.gameImg[data-v-d81fb7dc]{margin:8px;width:145px;height:145px;background-size:contain}section.popularGames .text[data-v-d81fb7dc]{max-width:370px}section.popularGames .text p[data-v-d81fb7dc]{margin:0 0 10px;text-align:left;line-height:1.35em;font-size:1em}section.popularGames h3[data-v-d81fb7dc]{text-transform:none;color:#0d0d14;font-size:32px;margin:0;line-height:1.5;display:inline-block;font-family:Open Sans,sans-serif;font-weight:700}@media only screen and (max-width:1319px){section.popularGames>div section[data-v-d81fb7dc]:last-of-type{margin:10px 0 0}section.popularGames .games[data-v-d81fb7dc]{max-width:400px}section.popularGames .games div.gameImg[data-v-d81fb7dc]{width:100px;height:100px}}@media only screen and (max-width:979px){section.popularGames[data-v-d81fb7dc]{padding:10px 50px}section.popularGames .games[data-v-d81fb7dc]{max-width:380px}section.popularGames .games div.gameImg[data-v-d81fb7dc]{width:80px;height:80px}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 102 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "grayangle.png?33e440ee5ccf5c5e61d92aba5f4623b6";
+
+/***/ }),
+/* 103 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"popularGames"},[_c('div',[_c('section',{staticClass:"games"},_vm._l((_vm.games),function(game,i){return _c('div',{key:game.id,staticClass:"gameImg",style:(("background:url(https://optimizedimages.wildtangent.com/" + (game.productkey) + "/big_icon.png?h=145&w=145&auto=compress&cs=tinysrgb) 0% 0% / contain no-repeat;")),attrs:{"data-game":game.productkey,"data-id":("" + (game.id))}})})),_vm._v(" "),_c('section',{staticClass:"text"},[_c('h3',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('p',[_vm._v(_vm._s(this.content.text[_vm.lang()]))])])])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 104 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_KeepInTouch_vue__ = __webpack_require__(22);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_6dd2c40f_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_KeepInTouch_vue__ = __webpack_require__(107);
+function injectStyle (ssrContext) {
+  __webpack_require__(105)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-6dd2c40f"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_KeepInTouch_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_6dd2c40f_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_KeepInTouch_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 105 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(106);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("1a787f2a", content, true, {});
+
+/***/ }),
+/* 106 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, ".keepInTouch[data-v-6dd2c40f]{background:#0f2959;box-sizing:border-box;padding:45px 0 70px}.keepInTouch h3[data-v-6dd2c40f]{text-align:center;color:#2359bc;text-transform:uppercase;margin:0;font-size:48px;line-height:40px;font-family:Open Sans Condensed,sans-serif;font-weight:700}.keepInTouch p[data-v-6dd2c40f]{text-align:center;color:#fff;margin:20px 0;font-family:Open Sans,sans-serif;font-size:15px;line-height:16px}.keepInTouch .inputWrap[data-v-6dd2c40f]{width:670px;margin:0 auto;display:flex;align-items:center;justify-content:flex-end}.keepInTouch .inputWrap input[name=email][data-v-6dd2c40f]{width:380px;font-size:16px;padding:6px;border:none;border-radius:3px}.keepInTouch .inputWrap button[data-v-6dd2c40f]{background:#66bc23;color:#fff;font-size:25px;font-family:Open Sans Condensed,sans-serif;font-weight:300;padding:0 30px 3px;margin:0 12px;border-radius:50px;line-height:1.273;text-align:center;-webkit-transition:background .2s ease-out;transition:background .2s ease-out;-webkit-box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);border:none}.keepInTouch .inputWrap button[data-v-6dd2c40f]:focus,.keepInTouch .inputWrap button[data-v-6dd2c40f]:hover{background:#7fda38}button[data-v-6dd2c40f]:focus,input[data-v-6dd2c40f]:focus,select[data-v-6dd2c40f]:focus,textarea[data-v-6dd2c40f]:focus{outline:none}input[data-v-6dd2c40f]:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #fff inset}@media only screen and (max-width:979px){.keepInTouch .inputWrap[data-v-6dd2c40f]{width:380px;justify-content:center;flex-wrap:wrap}.keepInTouch .inputWrap button[data-v-6dd2c40f]{margin-top:15px}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 107 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _vm._m(0)}
+var staticRenderFns = [function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"keepInTouch"},[_c('h3',[_vm._v("Keep in touch")]),_vm._v(" "),_c('p',[_vm._v("Stay up to date with the latest on wild games.")]),_vm._v(" "),_c('div',{staticClass:"inputWrap"},[_c('input',{attrs:{"type":"text","name":"email"}}),_vm._v(" "),_c('button',[_vm._v("Submit")])])])}]
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 108 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Footer_vue__ = __webpack_require__(24);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_9a50f8e0_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Footer_vue__ = __webpack_require__(111);
+function injectStyle (ssrContext) {
+  __webpack_require__(109)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-9a50f8e0"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Footer_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_9a50f8e0_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Footer_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 109 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(110);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("cf0f6430", content, true, {});
+
+/***/ }),
+/* 110 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section.lpFooter[data-v-9a50f8e0]{display:block;background:#0f2959 url(" + escape(__webpack_require__(23)) + ") no-repeat;background-size:cover;background-position:50%;min-height:190px;box-sizing:border-box;padding:25px 110px 0;color:#fff;margin:0}section.lpFooter h2[data-v-9a50f8e0]{text-transform:capitalize;font-weight:700;line-height:1;text-align:center;letter-spacing:-1px;margin:0 0 14px;color:#fff}section.lpFooter .button-wrapper[data-v-9a50f8e0]{display:flex;justify-content:center;padding:.5em}section.lpFooter a.trialBtn[data-v-9a50f8e0]{background-color:#66bc23;color:#fff;font-family:wf_SegoeUI,Segoe UI,Segoe,Segoe WP,Tahoma,Verdana,Arial,\"sans-serif\";font-size:18px;letter-spacing:0;text-transform:uppercase;font-weight:500;padding:5px 30px;border-radius:2px;line-height:1.273;text-align:center;text-decoration:none;-webkit-transition:background .2s ease-out;transition:background .2s ease-out;-webkit-box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12)}section.lpFooter a.trialBtn[data-v-9a50f8e0]:focus,section.lpFooter a.trialBtn[data-v-9a50f8e0]:hover{background:#7fda38}section.lpFooter p[data-v-9a50f8e0]{font-size:10px;line-height:15px;color:#fff;text-align:center;display:block;width:150px;margin:0 auto}@media only screen and (max-width:979px){section.lpFooter[data-v-9a50f8e0]{padding:25px 50px 0}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 111 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"lpFooter"},[_c('h2',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('div',{staticClass:"button-wrapper"},[_c('a',{staticClass:"trialBtn",attrs:{"href":"/wildsignup","data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Join Now footer"}},[_vm._v("\n      "+_vm._s(this.content.cta[_vm.lang()])+"\n    ")])]),_vm._v(" "),_c('p',[_c('span',{staticClass:"wildPrice"},[_vm._v(_vm._s(this.prices[this.domain]))]),_vm._v(_vm._s(this.content.priceDetails[_vm.lang()])+"\n  ")])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 112 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"lpWrapper"},[_c('sticky-button',{class:[_vm.show ? 'buttonSlideIn' : 'buttonSlideOut'],attrs:{"lang":this.lang}}),_vm._v(" "),_c('wild-header',{ref:"wildHeader",attrs:{"lang":this.lang}}),_vm._v(" "),_c('benefits-section',{ref:"benefitsSection",attrs:{"lang":this.lang}}),_vm._v(" "),_c('genres-section',{attrs:{"lang":this.lang}}),_vm._v(" "),_c('popular-games',{attrs:{"lang":this.lang}}),_vm._v(" "),_c('wild-footer',{attrs:{"lang":this.lang}})],1)}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 113 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Unlimitedplay_vue__ = __webpack_require__(25);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_17f0318d_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Unlimitedplay_vue__ = __webpack_require__(142);
+function injectStyle (ssrContext) {
+  __webpack_require__(114)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = null
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Unlimitedplay_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_17f0318d_hasScoped_false_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Unlimitedplay_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 114 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(115);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("c3534426", content, true, {});
+
+/***/ }),
+/* 115 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700|Open+Sans:400,600,700);", ""]);
+
+// module
+exports.push([module.i, "body,html{margin:0;padding:0}section.lpWrapper{font-size:16px;background:#fff;font-family:Open Sans,sans-serif}section.lpWrapper h2{font-family:Open Sans Condensed,sans-serif;font-size:3.15em;text-transform:uppercase;font-weight:700}section.lpWrapper .stickyWrap{position:fixed;width:100%;top:0;transition:transform .3s ease;z-index:20000}section.lpWrapper .stickyWrap.buttonSlideIn{transform:translateY(0)}section.lpWrapper .stickyWrap.buttonSlideOut{transform:translateY(-100px)}@media only screen and (max-width:850px){section.lpWrapper h2{font-size:2.5em}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 116 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Header_vue__ = __webpack_require__(26);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_1128a459_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Header_vue__ = __webpack_require__(119);
+function injectStyle (ssrContext) {
+  __webpack_require__(117)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-1128a459"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Header_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_1128a459_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Header_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 117 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(118);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("a25aa2f0", content, true, {});
+
+/***/ }),
+/* 118 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "header.lpHeader[data-v-1128a459]{display:block;background:#0f2959 url(" + escape(__webpack_require__(15)) + ") no-repeat;background-size:cover;background-position:50%;min-height:250px;box-sizing:border-box;padding:25px 110px 0;color:#fff;margin:0}header.lpHeader .head-inner[data-v-1128a459]{max-width:1100px;margin:0 auto}header.lpHeader h2[data-v-1128a459]{text-transform:capitalize;font-weight:700;line-height:1;text-align:left;letter-spacing:-1px;margin:0 0 14px;color:#fff}header.lpHeader p.copy[data-v-1128a459]{width:410px;line-height:1.75em;font-size:1em;text-align:left}header.lpHeader a.trialBtn[data-v-1128a459]{background-color:#66bc23;color:#fff;font-family:wf_SegoeUI,Segoe UI,Segoe,Segoe WP,Tahoma,Verdana,Arial,\"sans-serif\";font-size:18px;letter-spacing:0;text-transform:uppercase;font-weight:500;padding:5px 30px;border-radius:2px;line-height:1.273;text-align:center;text-decoration:none;-webkit-transition:background .2s ease-out;transition:background .2s ease-out;-webkit-box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12)}header.lpHeader a.trialBtn[data-v-1128a459]:focus,header.lpHeader a.trialBtn[data-v-1128a459]:hover{background:#7fda38}header.lpHeader p[data-v-1128a459]{font-size:10px;line-height:15px;color:#fff;text-align:center;display:block;width:150px}@media only screen and (max-width:979px){header.lpHeader[data-v-1128a459]{padding:25px 50px 0}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 119 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('header',{class:((_vm.lang()) + " lpHeader")},[_c('div',{staticClass:"head-inner"},[_c('h2',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('p',{staticClass:"copy"},[_vm._v("\n      "+_vm._s(this.content.copy[_vm.lang()])+"\n    ")]),_vm._v(" "),_c('a',{staticClass:"trialBtn",attrs:{"href":"/wildsignup","data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Join Now"}},[_vm._v("\n      "+_vm._s(this.content.cta[_vm.lang()])+"\n    ")]),_vm._v(" "),_c('p',[_c('span',{staticClass:"wildPrice"},[_vm._v(_vm._s(this.prices[this.domain]))]),_vm._v(_vm._s(this.content.priceDetails[_vm.lang()])+"\n    ")])])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 120 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__ = __webpack_require__(27);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_7bcba6a1_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__ = __webpack_require__(131);
+function injectStyle (ssrContext) {
+  __webpack_require__(121)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-7bcba6a1"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Benefits_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_7bcba6a1_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Benefits_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 121 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(122);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("177697d8", content, true, {});
+
+/***/ }),
+/* 122 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section#benefitsSection[data-v-7bcba6a1]{max-width:1300px;margin:0 auto;box-sizing:border-box;padding:10px 20px 20px;display:flex;flex-wrap:wrap;justify-content:center;align-content:baseline}section#benefitsSection h2[data-v-7bcba6a1]{width:100%;text-align:center;font-size:48px;margin:1rem 0 2.5rem;text-transform:none;color:#0d0d14;text-transform:uppercase}section#benefitsSection>div[data-v-7bcba6a1]{width:20%;margin:0 2%;position:relative}@media only screen and (max-width:767px){section#benefitsSection[data-v-7bcba6a1]{padding:10px 5px 40px}section#benefitsSection>div[data-v-7bcba6a1]{width:40%;margin:2%}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 123 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_BenefitItem_vue__ = __webpack_require__(28);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5ef204e4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_BenefitItem_vue__ = __webpack_require__(130);
+function injectStyle (ssrContext) {
+  __webpack_require__(124)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-5ef204e4"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_BenefitItem_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5ef204e4_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_BenefitItem_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 124 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(125);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("2b552968", content, true, {});
+
+/***/ }),
+/* 125 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "div.benefit[data-v-5ef204e4]{font-size:16px}div.benefit h3[data-v-5ef204e4]{font-weight:700;font-size:1.1em;text-transform:uppercase;margin:0 auto;width:80%}div.benefit h3[data-v-5ef204e4],div.benefit p[data-v-5ef204e4]{text-align:center;color:#0d0d14;font-family:Open Sans,sans-serif}div.benefit p[data-v-5ef204e4]{font-size:1em;line-height:1.4em;margin:1em 0}div.benefit p a[data-v-5ef204e4]{color:#2359bc;text-decoration:none}.signUp .icon[data-v-5ef204e4]{background:url(" + escape(__webpack_require__(126)) + ") no-repeat;background-size:82%}.explore .icon[data-v-5ef204e4]{background:url(" + escape(__webpack_require__(127)) + ") no-repeat;background-size:77%}.download .icon[data-v-5ef204e4]{background:url(" + escape(__webpack_require__(128)) + ") no-repeat;background-size:104%}.repeat .icon[data-v-5ef204e4]{background:url(" + escape(__webpack_require__(129)) + ") no-repeat;background-size:66%}.benefit .icon[data-v-5ef204e4]{margin:0 auto;width:188px;height:172px;background-position:50%}@media only screen and (max-width:979px){.benefit .icon[data-v-5ef204e4]{margin:10px auto 0;width:150px;height:118px;background-position:50%}div.benefit h3[data-v-5ef204e4]{font-size:.9em;width:100%}}@media only screen and (max-width:767px){.adFreeGaming .icon[data-v-5ef204e4]{background-size:78%}div.benefit h3[data-v-5ef204e4]{height:25px;font-size:1.1em}div.benefit p[data-v-5ef204e4]{font-size:.875em}}@media only screen and (max-width:699px){div.benefit h3[data-v-5ef204e4]{font-size:1em}}@media only screen and (max-width:570px){div.benefit h3[data-v-5ef204e4]{height:32px}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 126 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "signup-icon.png?e8838b98bde2b1e1817318647d775320";
+
+/***/ }),
+/* 127 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "explore-icon.png?951f61f28451b54f9239d7c47238ef7d";
+
+/***/ }),
+/* 128 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "download-icon.png?ba880fe08815dad9774786ed77d37bf2";
+
+/***/ }),
+/* 129 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "repeat-icon.png?cae136655d232343a411ada5d6e4f000";
+
+/***/ }),
+/* 130 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{class:((_vm.wildBenefit.id) + " benefit"),attrs:{"id":_vm.wildBenefit.id}},[(_vm.wildBenefit.a)?_c('a',{attrs:{"href":_vm.wildBenefit.a.href,"data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":_vm.wildBenefit.a.label}},[_c('div',{staticClass:"icon"})]):_c('div',{staticClass:"icon"}),_vm._v(" "),_c('h3',[_vm._v(_vm._s(_vm.wildBenefit.h3[this.lang()]))])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 131 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{attrs:{"id":"benefitsSection"}},[_c('h2',[_vm._v(_vm._s(this.headline[_vm.lang()]))]),_vm._v(" "),_vm._l((_vm.wildBenefits),function(wildBenefit){return _c('benefit-item',{key:wildBenefit.id,attrs:{"lang":_vm.lang,"wildBenefit":wildBenefit}})})],2)}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 132 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__ = __webpack_require__(29);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_2b6d95dd_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__ = __webpack_require__(137);
+function injectStyle (ssrContext) {
+  __webpack_require__(133)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-2b6d95dd"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_2b6d95dd_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 133 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(134);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("1d43d2e1", content, true, {});
+
+/***/ }),
+/* 134 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section.popularGames[data-v-2b6d95dd]{background:#99afd7 url(" + escape(__webpack_require__(135)) + ") no-repeat;background-position:100% 0;box-sizing:border-box;padding:10px 110px}section.popularGames>div[data-v-2b6d95dd]{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;grid-template-rows:auto;grid-gap:20px;column-gap:70px}section.popularGames .games[data-v-2b6d95dd]{grid-column:1/4;grid-row:1/6;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;grid-template-rows:auto}section.popularGames .games div.gameImg[data-v-2b6d95dd]{margin:8px;width:145px;height:145px;background-size:contain}section.popularGames h3[data-v-2b6d95dd]{grid-column:4/6;grid-row:2/3;text-transform:none;color:#0d0d14;font-size:28px;margin:0;line-height:1.5em;display:inline-block;font-family:Open Sans,sans-serif;font-weight:700}section.popularGames ul[data-v-2b6d95dd]{padding:0;list-style-position:inside;list-style-type:disc}section.popularGames p[data-v-2b6d95dd],section.popularGames ul[data-v-2b6d95dd]{margin:0;text-align:left;line-height:1.65em;font-size:1em;grid-column:4/6;grid-row:3/4}section.popularGames p a[data-v-2b6d95dd],section.popularGames ul a[data-v-2b6d95dd]{text-decoration:none;font-weight:700;color:#265fc9}@media only screen and (max-width:1319px){section.popularGames[data-v-2b6d95dd]{padding:10px 20px}section.popularGames>div[data-v-2b6d95dd]{grid-gap:20px;column-gap:20px}section.popularGames>div section[data-v-2b6d95dd]:last-of-type{margin:10px 0 0}section.popularGames .games div.gameImg[data-v-2b6d95dd]{width:122px;height:122px}}@media only screen and (max-width:979px){section.popularGames[data-v-2b6d95dd]{padding:10px 45px 30px;row-gap:10px;background-position:100% 100%;background-size:cover}section.popularGames .games[data-v-2b6d95dd]{order:2;grid-column:1/6;grid-row:2/3}section.popularGames .games div.gameImg[data-v-2b6d95dd]{width:150px;height:150px}section.popularGames h3[data-v-2b6d95dd]{order:1;grid-column:1/6;grid-row:1/2;text-align:center}section.popularGames p[data-v-2b6d95dd],section.popularGames ul[data-v-2b6d95dd]{order:3;text-align:center;grid-column:1/6;grid-row:3/4}}@media only screen and (max-width:767px){section.popularGames[data-v-2b6d95dd]{padding:10px 55px 30px}section.popularGames .games div.gameImg[data-v-2b6d95dd]{max-width:120px;max-height:120px}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 135 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__.p + "blueangle-3.png?898f178993369dab667444fd4b3d74f6";
+
+/***/ }),
+/* 136 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+/// <reference lib="dom" />
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
+            t[p[i]] = s[p[i]];
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var types_1 = __webpack_require__(30);
+var types_2 = __webpack_require__(30);
+exports.ClientError = types_2.ClientError;
+var GraphQLClient = /** @class */ (function () {
+    function GraphQLClient(url, options) {
+        this.url = url;
+        this.options = options || {};
+    }
+    GraphQLClient.prototype.rawRequest = function (query, variables) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, headers, others, body, response, result, headers_1, status_1, errorResult;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _a = this.options, headers = _a.headers, others = __rest(_a, ["headers"]);
+                        body = JSON.stringify({
+                            query: query,
+                            variables: variables ? variables : undefined,
+                        });
+                        return [4 /*yield*/, fetch(this.url, __assign({ method: 'POST', headers: __assign({ 'Content-Type': 'application/json' }, headers), body: body }, others))];
+                    case 1:
+                        response = _b.sent();
+                        return [4 /*yield*/, getResult(response)];
+                    case 2:
+                        result = _b.sent();
+                        if (response.ok && !result.errors && result.data) {
+                            headers_1 = response.headers, status_1 = response.status;
+                            return [2 /*return*/, __assign({}, result, { headers: headers_1, status: status_1 })];
+                        }
+                        else {
+                            errorResult = typeof result === 'string' ? { error: result } : result;
+                            throw new types_1.ClientError(__assign({}, errorResult, { status: response.status, headers: response.headers }), { query: query, variables: variables });
+                        }
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    GraphQLClient.prototype.request = function (query, variables) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, headers, others, body, response, result, errorResult;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _a = this.options, headers = _a.headers, others = __rest(_a, ["headers"]);
+                        body = JSON.stringify({
+                            query: query,
+                            variables: variables ? variables : undefined,
+                        });
+                        return [4 /*yield*/, fetch(this.url, __assign({ method: 'POST', headers: __assign({ 'Content-Type': 'application/json' }, headers), body: body }, others))];
+                    case 1:
+                        response = _b.sent();
+                        return [4 /*yield*/, getResult(response)];
+                    case 2:
+                        result = _b.sent();
+                        if (response.ok && !result.errors && result.data) {
+                            return [2 /*return*/, result.data];
+                        }
+                        else {
+                            errorResult = typeof result === 'string' ? { error: result } : result;
+                            throw new types_1.ClientError(__assign({}, errorResult, { status: response.status }), { query: query, variables: variables });
+                        }
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    GraphQLClient.prototype.setHeaders = function (headers) {
+        this.options.headers = headers;
+        return this;
+    };
+    GraphQLClient.prototype.setHeader = function (key, value) {
+        var _a;
+        var headers = this.options.headers;
+        if (headers) {
+            headers[key] = value;
+        }
+        else {
+            this.options.headers = (_a = {}, _a[key] = value, _a);
+        }
+        return this;
+    };
+    return GraphQLClient;
+}());
+exports.GraphQLClient = GraphQLClient;
+function rawRequest(url, query, variables) {
+    var client = new GraphQLClient(url);
+    return client.rawRequest(query, variables);
+}
+exports.rawRequest = rawRequest;
+function request(url, query, variables) {
+    var client = new GraphQLClient(url);
+    return client.request(query, variables);
+}
+exports.request = request;
+exports.default = request;
+function getResult(response) {
+    var contentType = response.headers.get('Content-Type');
+    if (contentType && contentType.startsWith('application/json')) {
+        return response.json();
+    }
+    else {
+        return response.text();
+    }
+}
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+/* 137 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"popularGames"},[_c('div',[_c('section',{staticClass:"games"},_vm._l((_vm.games),function(game,i){return _c('div',{key:i,staticClass:"gameImg",style:(("background:url(https://optimizedimages.wildtangent.com/" + (game.orderItemId) + "/big_icon.png?h=145&w=145&auto=compress&cs=tinysrgb) 0% 0% / contain no-repeat;")),attrs:{"data-game":game.orderItemId,"data-id":("" + (game.orderItemId))}})})),_vm._v(" "),_c('h3',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_vm._m(0)])])}
+var staticRenderFns = [function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('ul',[_c('li',[_vm._v("\n          One monthly low price and get unlimited access to play over "),_c('a',{attrs:{"href":"/Channels/unlimited-play","data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Browse Unlimited Play Games"}},[_vm._v("2,000+ select games")])]),_vm._v(" "),_c('li',[_vm._v("\n          Enjoy exclusive member discounts on select game purchases and rentals\n        ")]),_vm._v(" "),_c('li',[_vm._v("\n          No ad interruptions on web games\n        ")])])}]
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 138 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Footer_vue__ = __webpack_require__(31);
+/* unused harmony namespace reexport */
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5d8a09d2_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Footer_vue__ = __webpack_require__(141);
+function injectStyle (ssrContext) {
+  __webpack_require__(139)
+}
+var normalizeComponent = __webpack_require__(2)
+/* script */
+
+
+/* template */
+
+/* template functional */
+var __vue_template_functional__ = false
+/* styles */
+var __vue_styles__ = injectStyle
+/* scopeId */
+var __vue_scopeId__ = "data-v-5d8a09d2"
+/* moduleIdentifier (server only) */
+var __vue_module_identifier__ = null
+var Component = normalizeComponent(
+  __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_Footer_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_5d8a09d2_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_Footer_vue__["a" /* default */],
+  __vue_template_functional__,
+  __vue_styles__,
+  __vue_scopeId__,
+  __vue_module_identifier__
+)
+
+/* harmony default export */ __webpack_exports__["a"] = (Component.exports);
+
+
+/***/ }),
+/* 139 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(140);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(1)("d7e1ec5c", content, true, {});
+
+/***/ }),
+/* 140 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var escape = __webpack_require__(4);
+exports = module.exports = __webpack_require__(0)(false);
+// imports
+
+
+// module
+exports.push([module.i, "section.lpFooter[data-v-5d8a09d2]{display:block;background:#0f2959 url(" + escape(__webpack_require__(23)) + ") no-repeat;background-size:cover;background-position:50%;min-height:190px;box-sizing:border-box;padding:25px 110px 0;color:#fff;margin:0}section.lpFooter h2[data-v-5d8a09d2]{text-transform:capitalize;font-weight:700;line-height:1;text-align:center;letter-spacing:-1px;margin:0 0 14px;color:#fff}section.lpFooter .button-wrapper[data-v-5d8a09d2]{display:flex;justify-content:center;padding:.5em}section.lpFooter a.trialBtn[data-v-5d8a09d2]{background-color:#66bc23;color:#fff;font-family:wf_SegoeUI,Segoe UI,Segoe,Segoe WP,Tahoma,Verdana,Arial,\"sans-serif\";font-size:18px;letter-spacing:0;text-transform:uppercase;font-weight:500;padding:5px 30px;border-radius:2px;line-height:1.273;text-align:center;text-decoration:none;-webkit-transition:background .2s ease-out;transition:background .2s ease-out;-webkit-box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12);box-shadow:0 3px 1px -2px rgba(0,0,0,.2),0 2px 2px 0 rgba(0,0,0,.14),0 1px 5px 0 rgba(0,0,0,.12)}section.lpFooter a.trialBtn[data-v-5d8a09d2]:focus,section.lpFooter a.trialBtn[data-v-5d8a09d2]:hover{background:#7fda38}section.lpFooter p[data-v-5d8a09d2]{font-size:10px;line-height:15px;color:#fff;text-align:center;display:block;width:150px;margin:0 auto}@media only screen and (max-width:979px){section.lpFooter[data-v-5d8a09d2]{padding:25px 50px 0}}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 141 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"lpFooter"},[_c('h2',[_vm._v(_vm._s(this.content.headline[_vm.lang()]))]),_vm._v(" "),_c('div',{staticClass:"button-wrapper"},[_c('a',{staticClass:"trialBtn",attrs:{"href":"/wildsignup","data-event-category":"Landing Page","data-event-action":"Join wild","data-event-label":"Join Now footer"}},[_vm._v("\n      "+_vm._s(this.content.cta[_vm.lang()])+"\n    ")])]),_vm._v(" "),_c('p',[_c('span',{staticClass:"wildPrice"},[_vm._v(_vm._s(this.prices[this.domain]))]),_vm._v(_vm._s(this.content.priceDetails[_vm.lang()])+"\n  ")])])}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 142 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('section',{staticClass:"lpWrapper"},[_c('wild-header',{ref:"wildHeader",attrs:{"lang":this.lang}}),_vm._v(" "),_c('benefits-section',{ref:"benefitsSection",attrs:{"lang":this.lang}}),_vm._v(" "),_c('popular-games',{attrs:{"lang":this.lang}}),_vm._v(" "),_c('wild-footer',{attrs:{"lang":this.lang}})],1)}
+var staticRenderFns = []
+var esExports = { render: render, staticRenderFns: staticRenderFns }
+/* harmony default export */ __webpack_exports__["a"] = (esExports);
+
+/***/ }),
+/* 143 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{attrs:{"id":"app"}},[(_vm.showUnlimited() === false)?_c('main-page'):_vm._e(),_vm._v(" "),(_vm.showUnlimited())?_c('unlimited-play'):_vm._e()],1)}
 var staticRenderFns = []
 var esExports = { render: render, staticRenderFns: staticRenderFns }
 /* harmony default export */ __webpack_exports__["a"] = (esExports);
