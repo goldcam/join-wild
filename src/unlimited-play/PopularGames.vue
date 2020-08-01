@@ -15,7 +15,7 @@
         </p> -->
         <ul>
           <li>
-            One monthly low price and get unlimited access to play over <a href="/Channels/unlimited-play" data-event-category="Landing Page" data-event-action="Join wild" data-event-label="Browse Unlimited Play Games" >2,000+ select games</a>
+            One low monthly price and get unlimited access to play over <a href="/Channels/unlimited-play" data-event-category="Landing Page" data-event-action="Join wild" data-event-label="Browse Unlimited Play Games" >2,000+ select games</a>
           </li>
           <li>
             Enjoy exclusive member discounts on select game purchases and rentals
