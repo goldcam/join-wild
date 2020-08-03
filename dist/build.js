@@ -17199,7 +17199,7 @@ var esExports = { render: render, staticRenderFns: staticRenderFns }
 "use strict";
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__ = __webpack_require__(29);
 /* unused harmony namespace reexport */
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_ef933f46_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__ = __webpack_require__(137);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_0a7dfcec_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__ = __webpack_require__(137);
 function injectStyle (ssrContext) {
   __webpack_require__(133)
 }
@@ -17214,12 +17214,12 @@ var __vue_template_functional__ = false
 /* styles */
 var __vue_styles__ = injectStyle
 /* scopeId */
-var __vue_scopeId__ = "data-v-ef933f46"
+var __vue_scopeId__ = "data-v-0a7dfcec"
 /* moduleIdentifier (server only) */
 var __vue_module_identifier__ = null
 var Component = normalizeComponent(
   __WEBPACK_IMPORTED_MODULE_0__babel_loader_node_modules_vue_loader_lib_selector_type_script_index_0_popularGames_vue__["a" /* default */],
-  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_ef933f46_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__["a" /* default */],
+  __WEBPACK_IMPORTED_MODULE_1__node_modules_vue_loader_lib_template_compiler_index_id_data_v_0a7dfcec_hasScoped_true_buble_transforms_node_modules_vue_loader_lib_selector_type_template_index_0_popularGames_vue__["a" /* default */],
   __vue_template_functional__,
   __vue_styles__,
   __vue_scopeId__,
@@ -17240,7 +17240,7 @@ var content = __webpack_require__(134);
 if(typeof content === 'string') content = [[module.i, content, '']];
 if(content.locals) module.exports = content.locals;
 // add the styles to the DOM
-var update = __webpack_require__(1)("69a25f6a", content, true, {});
+var update = __webpack_require__(1)("2fa386a2", content, true, {});
 
 /***/ }),
 /* 134 */
@@ -17252,7 +17252,7 @@ exports = module.exports = __webpack_require__(0)(false);
 
 
 // module
-exports.push([module.i, "section.popularGames[data-v-ef933f46]{background:#99afd7 url(" + escape(__webpack_require__(135)) + ") no-repeat;background-position:100% 0;box-sizing:border-box;padding:10px 110px}section.popularGames>div[data-v-ef933f46]{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;grid-template-rows:auto;grid-gap:20px;column-gap:70px}section.popularGames .games[data-v-ef933f46]{grid-column:1/4;grid-row:1/6;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;grid-template-rows:auto}section.popularGames .games div.gameImg[data-v-ef933f46]{margin:8px;width:145px;height:145px;background-size:contain}section.popularGames h3[data-v-ef933f46]{grid-column:4/6;grid-row:2/3;text-transform:none;color:#0d0d14;font-size:28px;margin:0;line-height:1.5em;display:inline-block;font-family:Open Sans,sans-serif;font-weight:700}section.popularGames ul[data-v-ef933f46]{padding:0;list-style-position:inside;list-style-type:disc}section.popularGames p[data-v-ef933f46],section.popularGames ul[data-v-ef933f46]{margin:0;text-align:left;line-height:1.65em;font-size:1em;grid-column:4/6;grid-row:3/4}section.popularGames p a[data-v-ef933f46],section.popularGames ul a[data-v-ef933f46]{text-decoration:none;font-weight:700;color:#265fc9}@media only screen and (max-width:1319px){section.popularGames[data-v-ef933f46]{padding:10px 20px}section.popularGames>div[data-v-ef933f46]{grid-gap:20px;column-gap:20px}section.popularGames>div section[data-v-ef933f46]:last-of-type{margin:10px 0 0}section.popularGames .games div.gameImg[data-v-ef933f46]{width:122px;height:122px}}@media only screen and (max-width:979px){section.popularGames[data-v-ef933f46]{padding:10px 45px 30px;row-gap:10px;background-position:100% 100%;background-size:cover}section.popularGames .games[data-v-ef933f46]{order:2;grid-column:1/6;grid-row:2/3}section.popularGames .games div.gameImg[data-v-ef933f46]{width:150px;height:150px}section.popularGames h3[data-v-ef933f46]{order:1;grid-column:1/6;grid-row:1/2;text-align:center}section.popularGames p[data-v-ef933f46],section.popularGames ul[data-v-ef933f46]{order:3;text-align:center;grid-column:1/6;grid-row:3/4}}@media only screen and (max-width:767px){section.popularGames[data-v-ef933f46]{padding:10px 55px 30px}section.popularGames .games div.gameImg[data-v-ef933f46]{max-width:120px;max-height:120px}}", ""]);
+exports.push([module.i, "section.popularGames[data-v-0a7dfcec]{background:#99afd7 url(" + escape(__webpack_require__(135)) + ") no-repeat;background-position:100% 0;box-sizing:border-box;padding:10px 110px}section.popularGames>div[data-v-0a7dfcec]{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;grid-template-rows:auto;grid-gap:20px;column-gap:70px}section.popularGames .games[data-v-0a7dfcec]{grid-column:1/4;grid-row:1/6;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;grid-template-rows:auto}section.popularGames .games div.gameImg[data-v-0a7dfcec]{margin:8px;width:145px;height:145px;background-size:contain}section.popularGames h3[data-v-0a7dfcec]{grid-column:4/6;grid-row:2/3;text-transform:none;color:#0d0d14;font-size:28px;margin:0;line-height:1.5em;display:inline-block;font-family:Open Sans,sans-serif;font-weight:700}section.popularGames ul[data-v-0a7dfcec]{padding:0 0 0 20px;list-style-type:disc}section.popularGames p[data-v-0a7dfcec],section.popularGames ul[data-v-0a7dfcec]{margin:0;text-align:left;line-height:1.65em;font-size:1em;grid-column:4/6;grid-row:3/4}section.popularGames p a[data-v-0a7dfcec],section.popularGames ul a[data-v-0a7dfcec]{text-decoration:none;font-weight:700;color:#265fc9}@media only screen and (max-width:1319px){section.popularGames[data-v-0a7dfcec]{padding:10px 20px}section.popularGames>div[data-v-0a7dfcec]{grid-gap:20px;column-gap:20px}section.popularGames>div section[data-v-0a7dfcec]:last-of-type{margin:10px 0 0}section.popularGames .games div.gameImg[data-v-0a7dfcec]{width:122px;height:122px}}@media only screen and (max-width:979px){section.popularGames[data-v-0a7dfcec]{padding:10px 45px 30px;row-gap:10px;background-position:100% 100%;background-size:cover}section.popularGames .games[data-v-0a7dfcec]{order:2;grid-column:1/6;grid-row:2/3}section.popularGames .games div.gameImg[data-v-0a7dfcec]{width:150px;height:150px}section.popularGames h3[data-v-0a7dfcec]{order:1;grid-column:1/6;grid-row:1/2;text-align:center}section.popularGames p[data-v-0a7dfcec],section.popularGames ul[data-v-0a7dfcec]{order:3;text-align:center;grid-column:1/6;grid-row:3/4}}@media only screen and (max-width:767px){section.popularGames[data-v-0a7dfcec]{padding:10px 55px 30px}section.popularGames .games div.gameImg[data-v-0a7dfcec]{max-width:120px;max-height:120px}}", ""]);
 
 // exports
 

@@ -133,8 +133,8 @@ export default{
       font-weight: bold;
     }
     ul{
-      padding: 0;
-      list-style-position: inside;
+      padding: 0 0 0 20px;
+
       list-style-type: disc;
     }
     p, ul{
